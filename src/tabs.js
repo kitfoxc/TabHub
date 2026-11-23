@@ -7,6 +7,7 @@ function createTabStrip(onChange) {
     const template = document.getElementById('tab-template');
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     let active;
+    let duration = 0;
     const textAnimations = new Map();
     // Opening order is independent of both visual placement and user selection.
     const announcements = new Set();
@@ -25,7 +26,7 @@ function createTabStrip(onChange) {
             const i = visible.indexOf(tab);
             active = visible[i + 1] || visible[i - 1] || [...announcements].at(-1);
         }
-        if (reducedMotion.matches || !tab.offsetWidth) {
+        if (!duration || reducedMotion.matches || !tab.offsetWidth) {
             tab.remove();
             return;
         }
@@ -44,7 +45,7 @@ function createTabStrip(onChange) {
             if (event.target === tab && event.propertyName === 'width') tab.remove();
         };
         tab.addEventListener('transitionend', finish);
-        setTimeout(() => tab.remove(), 200 / options.speed + 50);
+        setTimeout(() => tab.remove(), duration + 50);
     }
 
     // Share a width budget without taking unused space away from short titles.
@@ -85,11 +86,13 @@ function createTabStrip(onChange) {
 
     function layout() {
         const scrolling = new Set();
-        const scale = Math.max(.5, Math.min(1, innerWidth / 1920));
-        chromeBar.style.zoom = scale;
-        const duration = reducedMotion.matches ? 0 : 180 / options.speed;
+        const theme = getComputedStyle(chromeBar);
+        const metric = name => Number(theme.getPropertyValue(name));
+        const scale = Math.max(.5, Math.min(metric('--max-scale'), innerWidth / metric('--design-width')));
+        chromeBar.style.setProperty('--tab-scale', scale);
+        duration = reducedMotion.matches ? 0 : metric('--motion-ms') / options.speed;
         chromeBar.style.setProperty('--motion', duration + 'ms');
-        chromeBar.style.setProperty('--curve', options.easing === 'browser' ? 'cubic-bezier(.08,.75,.12,1)' : options.easing);
+        chromeBar.style.setProperty('--curve', options.easing === 'browser' ? 'cubic-bezier(.08,.75,.12,1)' : options.easing === 'theme' ? 'var(--theme-curve)' : options.easing);
 
         const railStyle = getComputedStyle(rail);
         const capacity = Math.max(0, rail.clientWidth - parseFloat(railStyle.paddingRight)
@@ -107,9 +110,10 @@ function createTabStrip(onChange) {
             tab.classList.toggle('active', tab === active);
         }
 
-        // The title needs 68px for its icon, gap and padding, plus 50px for the close button.
-        const titleInset = 68;
-        const closeInset = 50;
+        const titleInset = metric('--title-inset');
+        const closeInset = metric('--close-inset');
+        const narrowWidth = metric('--narrow-width');
+        const iconOnlyWidth = metric('--icon-only-width');
         const items = visible.map(tab => {
             const compact = (recent.has(tab) ? options.recentMode : options.olderMode) === 'compact';
             const label = tab.querySelector('.label');
@@ -125,10 +129,10 @@ function createTabStrip(onChange) {
         let remaining = 0;
         for (const { tab, label, width, textWidth, compact: isCompact } of items) {
             const current = tab === active;
-            const iconOnly = width < 98;
-            const hasClose = current || width >= 165;
+            const iconOnly = width < iconOnlyWidth;
+            const hasClose = current || width >= narrowWidth;
             tab.classList.toggle('compact', isCompact);
-            tab.classList.toggle('narrow', width < 165);
+            tab.classList.toggle('narrow', width < narrowWidth);
             tab.classList.toggle('icon-only', iconOnly);
             tab.style.width = width + 'px';
             tab.querySelector('.select').setAttribute('aria-pressed', String(current));
@@ -193,6 +197,12 @@ function createTabStrip(onChange) {
     return {
         get size() { return announcements.size; },
         append: appendTab, layout, trimHistory,
+        finishThemeMotion() {
+            for (const tab of tabs.children) {
+                if (announcements.has(tab)) delete tab.dataset.openSide;
+            }
+            tabs.querySelectorAll('.leaving').forEach(tab => tab.remove());
+        },
         closeNext() {
             const victim = closeCandidates()[0] || active;
             if (victim) closeMotion(victim);

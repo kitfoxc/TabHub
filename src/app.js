@@ -94,6 +94,8 @@ function updateControls() {
 }
 window.addEventListener('hub-settings-change', event => {
     const before = event.detail;
+    if (before.colorMode !== options.colorMode) applyPalette(options.colorMode);
+    if (before.themeId !== options.themeId) switchTheme(options.themeId);
     if (before.weightStart !== options.weightStart ||
         before.weightStep !== options.weightStep || before.weightReset !== options.weightReset || before.draw !== options.draw) source.reset();
     updateStatus();
@@ -110,6 +112,8 @@ window.addEventListener('hub-settings-change', event => {
 });
 window.addEventListener('resize', refresh);
 document.addEventListener('visibilitychange', syncPlayback);
+applyPalette(options.colorMode);
+switchTheme(options.themeId);
 updateStatus();
 updateControls();
 nextOpenAt = now() + (options.openTiming === 'random' ? openDelay() : 0);

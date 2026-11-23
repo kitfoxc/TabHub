@@ -6,6 +6,10 @@ const choice = (label, value, choices) => ({ label, value, choices });
 const modes = { full: '完整显示', compact: '压缩显示' };
 const sides = { left: '左侧', right: '右侧' };
 const sections = {
+    '界面主题': {
+        themeId: choice('主题', 'default', themeChoices),
+        colorMode: choice('配色', 'light', { light: '浅色', dark: '深色', system: '跟随系统' })
+    },
     '公告抽取': {
         draw: choice('抽取方式', 'weighted', { weighted: '加权随机', average: '均匀随机' }),
         variables: choice('时间变量', 'on', { on: '启用', off: '关闭' }),
@@ -35,7 +39,7 @@ const sections = {
     },
     '动画与滚动': {
         speed: numeric('标签动画速度倍率', 1, .25, 4, .05),
-        easing: choice('标签缓动', 'browser', { browser: '浏览器风格', 'ease-out': '缓出', 'ease-in-out': '缓入缓出', linear: '线性' }),
+        easing: choice('标签缓动', 'theme', { theme: '跟随主题', browser: '浏览器风格', 'ease-out': '缓出', 'ease-in-out': '缓入缓出', linear: '线性' }),
         scrollScope: choice('溢出文字滚动', 'all', { off: '关闭', active: '仅主标签', all: '所有可见标签' }),
         scrollRepeat: choice('滚动方式', 'once', { once: '一次', loop: '循环' }),
         scrollSpeed: numeric('文字速度（px/s）', 55, 5, 500),
@@ -44,6 +48,8 @@ const sections = {
 };
 const fields = Object.assign({}, ...Object.values(sections));
 const settingHelp = {
+    themeId: '即时更换直播外框和标签动画。已打开的标签会保留。',
+    colorMode: '直播可固定使用深色或浅色。跟随系统使用 OBS 浏览器源报告的配色偏好。',
     draw: '加权随机会降低刚抽中的公告再次出现的概率。均匀随机让可抽取的公告机会相同。',
     variables: '开启后，将公告里的时间占位符替换为显示时的本地日期和时间。',
     weightStart: '建立公告池时给每条公告分配的初始权重。仅用于加权随机。',
@@ -103,6 +109,7 @@ function restoreProfile(saved) {
     if (saved.activeMode && saved.otherMode && !Object.hasOwn(saved, 'recentCount')) {
         Object.assign(restored, { recentCount: 1, recentMode: saved.activeMode, olderMode: saved.otherMode });
     }
+    if (!Object.hasOwn(themeChoices, restored.themeId)) restored.themeId = 'default';
     validate(restored);
     return restored;
 }

@@ -1,0 +1,22 @@
+:root { --motion-ms: 180; --theme-curve: cubic-bezier(.08,.75,.12,1); }
+.tab { transition: width var(--motion) var(--curve); }
+.face { transition: background-color var(--motion) var(--curve); }
+/* Width opens the slot. A short fade keeps its contents from popping in. */
+.tab[data-open-side="left"] { --entry-offset: -6px; }
+.tab[data-open-side="right"] { --entry-offset: 6px; }
+.tab[data-open-side] { animation: reveal-tab var(--motion) var(--curve) backwards; }
+@keyframes reveal-tab {
+    from { opacity: 0; transform: translateX(var(--entry-offset)); }
+    to { opacity: 1; transform: translateX(0); }
+}
+.tab.leaving { animation: dismiss-tab var(--motion) ease-out both; }
+.tab.leaving .face { width: var(--closing-width); }
+.tab[data-close-side="left"] { --exit-offset: -6px; }
+.tab[data-close-side="left"] .face { left: auto; right: 0; }
+.tab[data-close-side="right"] { --exit-offset: 6px; }
+.tab[data-close-side="right"] .face { left: 0; right: auto; }
+@keyframes dismiss-tab {
+    from { opacity: var(--closing-opacity); transform: var(--closing-transform); }
+    to { opacity: 0; transform: translateX(var(--exit-offset)); }
+}
+.tab.shelved { visibility: hidden; transition: width var(--motion) var(--curve), visibility 0s var(--motion); }
