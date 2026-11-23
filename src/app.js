@@ -1,5 +1,7 @@
 'use strict';
 
+const hubId = new URLSearchParams(location.search).get('hub') || 'main';
+let options = diskConfig.hubs.get(hubId) ?? diskConfig.settings;
 const pauseButton = document.getElementById('pause');
 const source = new MessageSource(typeof tabHubMessages === 'undefined' ? [] : tabHubMessages);
 const strip = createTabStrip(refresh);
@@ -17,7 +19,7 @@ function updateStatus() {
 function showNext(manual = false) {
     if (!options.limit) return;
     const entry = source.next(options);
-    if (entry != null) strip.append(formatMessage(entry, options.variables === 'on'), manual);
+    return entry != null && strip.append(formatMessage(entry, options.variables === 'on'), manual);
 }
 // Deadlines are measured in visible, unpaused time.
 function now() {
@@ -76,26 +78,28 @@ function refresh() {
 }
 
 function nextTab() {
-    showNext(true);
+    const created = showNext(true);
     refresh();
+    return created;
 }
 document.getElementById('new-tab').onclick = nextTab;
-document.getElementById('preview').onclick = nextTab;
-pauseButton.onclick = () => {
-    paused = !paused;
+pauseButton.onclick = () => setPaused(!paused);
+function setPaused(value) {
+    paused = value;
     pauseButton.setAttribute('aria-pressed', String(paused));
     pauseButton.title = paused ? '继续轮播' : '暂停轮播';
     pauseButton.setAttribute('aria-label', pauseButton.title);
     syncPlayback();
-};
+}
 function updateControls() {
     document.getElementById('new-tab').disabled = !options.limit;
-    document.getElementById('preview').disabled = !options.limit;
 }
-window.addEventListener('hub-settings-change', event => {
-    const before = event.detail;
+async function applyHubSettings(value) {
+    validate(value);
+    if (!await switchTheme(value.themeId)) return false;
+    const before = options;
+    options = value;
     if (before.colorMode !== options.colorMode) applyPalette(options.colorMode);
-    if (before.themeId !== options.themeId) switchTheme(options.themeId);
     if (before.weightStart !== options.weightStart ||
         before.weightStep !== options.weightStep || before.weightReset !== options.weightReset || before.draw !== options.draw) source.reset();
     updateStatus();
@@ -109,11 +113,15 @@ window.addEventListener('hub-settings-change', event => {
     strip.trimHistory();
     updateControls();
     refresh();
-});
+    return true;
+}
 window.addEventListener('resize', refresh);
 document.addEventListener('visibilitychange', syncPlayback);
 applyPalette(options.colorMode);
-switchTheme(options.themeId);
+switchTheme(options.themeId).then(refresh).catch(() => {
+    options = { ...options, themeId: activeTheme };
+    console.warn('TabHub 启动主题加载失败，当前使用', activeTheme);
+});
 updateStatus();
 updateControls();
 nextOpenAt = now() + (options.openTiming === 'random' ? openDelay() : 0);

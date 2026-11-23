@@ -186,7 +186,7 @@ function createTabStrip(onChange) {
     }
     function appendTab(content, manual) {
         const html = content.innerHTML;
-        if (!options.limit || !content.textContent || (!manual && html === previous && active)) return;
+        if (!options.limit || !content.textContent || (!manual && html === previous && active)) return false;
         previous = html;
         const tab = template.content.firstElementChild.cloneNode(true);
         const label = tab.querySelector('.label');
@@ -199,6 +199,7 @@ function createTabStrip(onChange) {
         tab.getBoundingClientRect(); // Establish width zero before opening.
         active = tab;
         trimHistory();
+        return true;
     }
 
     tabs.addEventListener('click', event => {
