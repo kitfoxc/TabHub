@@ -114,8 +114,15 @@ function updatePanel() {
     for (const group of form.querySelectorAll('fieldset')) group.hidden = group.dataset.section !== sectionSelect.value;
     document.getElementById('restore').hidden = sectionSelect.value === '配置迁移';
     const adaptive = options.fitText === 'on';
-    form.elements.maxWidth.parentElement.hidden = adaptive;
-    form.elements.recentCount.parentElement.hidden = !adaptive;
+    const vertical = themeCatalog[options.themeId].layout === 'vertical';
+    for (const key of ['fitText', 'minWidth']) form.elements[key].parentElement.hidden = vertical;
+    form.elements.maxWidth.parentElement.hidden = vertical || adaptive;
+    form.elements.recentCount.parentElement.hidden = vertical || !adaptive;
+    for (const key of ['openSide', 'closeSide']) {
+        for (const option of form.elements[key].options) {
+            option.text = vertical ? (option.value === 'left' ? '顶部' : '底部') : sides[option.value];
+        }
+    }
     const random = options.openTiming === 'random';
     for (const key of ['randomMin', 'randomMax']) form.elements[key].parentElement.hidden = !random;
     form.elements.openInterval.parentElement.hidden = options.openTiming !== 'fixed';
@@ -130,17 +137,18 @@ buildPanel();
 form.onsubmit = e => e.preventDefault();
 function readPanel() {
     const value = { ...options };
-    if (sectionSelect.value === '标签布局') {
+    if (sectionSelect.value === '标签布局' && !form.elements.fitText.parentElement.hidden) {
         value.fitText = form.elements.fitText.value;
         if (options.fitText === 'on' && value.fitText === 'off') {
             const maxWidth = form.elements.maxWidth;
             maxWidth.value = Math.max(options.maxWidth, options.minWidth);
         }
     }
+    const horizontal = !form.elements.fitText.parentElement.hidden;
     for (const key of Object.keys(sections[sectionSelect.value] ?? {})) {
         const field = form.elements[key];
-        const visible = key === 'maxWidth' ? value.fitText === 'off'
-            : key === 'recentCount' ? value.fitText === 'on' : !field.parentElement.hidden;
+        const visible = key === 'maxWidth' ? horizontal && value.fitText === 'off'
+            : key === 'recentCount' ? horizontal && value.fitText === 'on' : !field.parentElement.hidden;
         if (!visible) continue;
         if (!field.checkValidity()) throw new Error('请检查「' + fields[key].label + '」的取值范围。');
         value[key] = field.type === 'number' ? field.valueAsNumber : field.value;

@@ -2,7 +2,8 @@
 
 const themeCatalog = {
     default: { label: '默认' },
-    photoshop: { label: 'Photoshop' }
+    photoshop: { label: 'Photoshop' },
+    cards: { label: '纵向卡片', layout: 'vertical', view: true }
 };
 const themeChoices = Object.fromEntries(Object.entries(themeCatalog).map(([id, theme]) => [id, theme.label]));
 

@@ -14,6 +14,7 @@
     <script defer src="src/settings.js"></script>
     <script defer src="src/theme-manager.js"></script>
     <script defer src="src/broadcast.js"></script>
+    <script defer src="src/tab-layout.js"></script>
     <script defer src="src/tabs.js"></script>
     <script defer src="src/app.js"></script>
     <script defer src="src/hub-receiver.js"></script>
@@ -27,7 +28,7 @@
     </defs></svg>
     <header class="chrome">
         <button class="tool" id="pause" title="暂停轮播" aria-label="暂停轮播" aria-pressed="false"><svg><use href="#stack"/></svg></button>
-        <div id="rail"><div id="tabs" aria-label="公告标签"></div><button id="new-tab" title="打开下一条公告" aria-label="打开下一条公告"><svg><use href="#plus"/></svg></button></div>
+        <div id="rail"><div id="tabs" data-layout="horizontal" aria-label="公告标签"></div><button id="new-tab" title="打开下一条公告" aria-label="打开下一条公告"><svg><use href="#plus"/></svg></button></div>
         <div class="window-controls" aria-hidden="true"><i></i><i></i><svg><use href="#cross"/></svg></div>
     </header>
     <template id="tab-template"><div class="tab"><div class="face">

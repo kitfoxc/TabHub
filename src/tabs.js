@@ -1,45 +1,12 @@
 'use strict';
 
-function allocateTabWidths(textWidths, insets, capacity, { fitText, minWidth, maxWidth, recentCount }) {
-    const count = textWidths.length;
-    if (!count) return [];
-    if (fitText === 'off') return Array(count).fill(Math.min(maxWidth, capacity / count));
-
-    const widths = textWidths.map(width => Math.max(minWidth, insets + width));
-    let excess = widths.reduce((sum, width) => sum + width, 0) - capacity;
-    const recentStart = Math.max(0, count - recentCount);
-    for (let index = 0; index < recentStart && excess > 0; index++) {
-        const reduction = Math.min(excess, widths[index] - minWidth);
-        widths[index] -= reduction;
-        excess -= reduction;
-    }
-    if (excess <= 0) return widths;
-
-    const recent = textWidths.slice(recentStart);
-    const recentBudget = capacity - recentStart * minWidth;
-    const sharedWidth = recentBudget / recent.length;
-    if (sharedWidth <= insets) {
-        return widths.slice(0, recentStart).concat(recent.map(() => sharedWidth));
-    }
-
-    // Apply one percentage to the text area, after reserving the theme insets.
-    let budget = recentBudget - insets * recent.length;
-    const minimumText = Math.max(0, minWidth - insets);
-    let total = recent.reduce((sum, width) => sum + width, 0);
-    for (const width of recent.slice().sort((a, b) => a - b)) {
-        if (width * budget >= minimumText * total) break;
-        budget -= minimumText;
-        total -= width;
-    }
-    const scale = total > 0 ? budget / total : 0;
-    return widths.slice(0, recentStart).concat(recent.map(width => Math.max(minWidth, insets + width * scale)));
-}
-
 function createTabStrip(onChange) {
     const tabs = document.getElementById('tabs');
     const rail = document.getElementById('rail');
     const chromeBar = document.querySelector('.chrome');
-    const template = document.getElementById('tab-template');
+    const defaultTab = document.getElementById('tab-template').content.firstElementChild;
+    let blueprint = defaultTab;
+    let strategy = tabLayouts.horizontal;
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     let active;
     let duration = 0;
@@ -63,23 +30,23 @@ function createTabStrip(onChange) {
             const i = visible.indexOf(tab);
             active = visible[i + 1] || visible[i - 1] || [...announcements].at(-1);
         }
-        if (!duration || reducedMotion.matches || !tab.offsetWidth) {
+        if (!duration || reducedMotion.matches || !tab[strategy.offset]) {
             tab.remove();
             return;
         }
         tab.dataset.closeSide = options.closeSide;
         const painted = getComputedStyle(tab);
-        tab.style.setProperty('--closing-width', painted.width);
+        tab.style.setProperty('--closing-' + strategy.dimension, painted[strategy.dimension]);
         tab.style.setProperty('--closing-opacity', painted.opacity);
         tab.style.setProperty('--closing-transform', painted.transform);
         tab.classList.add('leaving');
         tab.classList.toggle('was-active', tab.classList.contains('active'));
         tab.classList.remove('active');
         tab.inert = true;
-        tab.style.width = '0px';
+        tab.style[strategy.dimension] = '0px';
         // Includes hidden tabs and reduced-motion profiles that emit no transitionend.
         const finish = event => {
-            if (event.target === tab && event.propertyName === 'width') tab.remove();
+            if (event.target === tab && event.propertyName === strategy.dimension) tab.remove();
         };
         tab.addEventListener('transitionend', finish);
         setTimeout(() => tab.remove(), duration + 50);
@@ -117,17 +84,19 @@ function createTabStrip(onChange) {
         chromeBar.style.setProperty('--curve', options.easing === 'browser' ? 'cubic-bezier(.08,.75,.12,1)' : options.easing === 'theme' ? 'var(--theme-curve)' : options.easing);
 
         const railStyle = getComputedStyle(rail);
-        const capacity = Math.max(0, rail.clientWidth - parseFloat(railStyle.paddingRight)
-            - parseFloat(railStyle.columnGap) - document.getElementById('new-tab').offsetWidth);
+        const available = Math.max(0, strategy.capacity(rail, document.getElementById('new-tab'), railStyle));
+        const minimum = strategy.minimum(options, metric);
+        const measured = callThemeHook('measure', { available, minimum, scale, limit: options.limit });
+        const capacity = Number.isFinite(measured) && measured >= 0 ? measured : available;
         const open = [...announcements];
-        const count = Math.min(options.limit, Math.floor(capacity / options.minWidth));
+        const count = Math.min(options.limit, Math.floor(capacity / minimum));
         const visible = count ? open.slice(-count) : [];
         if (active && visible.length && !visible.includes(active)) visible[0] = active;
         const visibleTabs = new Set(visible);
         for (const tab of open) {
             tab.inert = !visibleTabs.has(tab);
             tab.classList.toggle('shelved', tab.inert);
-            if (tab.inert) tab.style.width = '0px';
+            if (tab.inert) tab.style[strategy.dimension] = '0px';
             tab.classList.toggle('active', tab === active);
         }
 
@@ -140,19 +109,19 @@ function createTabStrip(onChange) {
             const textWidth = Math.ceil(label.getBoundingClientRect().width / scale);
             return { tab, label, textWidth };
         });
-        const widths = allocateTabWidths(items.map(item => item.textWidth), titleInset + closeInset, capacity, options);
+        const sizes = strategy.sizes(items, { capacity, options, insets: titleInset + closeInset, minimum });
 
         for (const [index, { tab, label, textWidth }] of items.entries()) {
-            const width = widths[index];
+            const size = sizes[index];
             const current = tab === active;
-            const iconOnly = width < iconOnlyWidth;
-            const hasClose = current || width >= narrowWidth;
-            tab.classList.toggle('narrow', width < narrowWidth);
+            tab.style[strategy.dimension] = size + 'px';
+            const { narrow, iconOnly, width: clipWidth } = strategy.labelArea({
+                size, label, current, titleInset, closeInset, narrowWidth, iconOnlyWidth
+            });
+            tab.classList.toggle('narrow', narrow);
             tab.classList.toggle('icon-only', iconOnly);
-            tab.style.width = width + 'px';
             tab.querySelector('.select').setAttribute('aria-pressed', String(current));
 
-            const clipWidth = Math.max(0, width - titleInset - (hasClose ? closeInset : 0));
             const distance = Math.max(0, textWidth - clipWidth);
             tab.classList.toggle('overflowing', distance > 0);
             const allowScroll = options.scrollScope === 'all' || (current && options.scrollScope === 'active');
@@ -166,6 +135,7 @@ function createTabStrip(onChange) {
             state.animation.cancel();
             textAnimations.delete(label);
         }
+        callThemeHook('layout', { visible, active, capacity, scale });
     }
 
     function closeCandidates() {
@@ -183,7 +153,7 @@ function createTabStrip(onChange) {
         const html = content.innerHTML;
         if (!options.limit || !content.textContent || (!manual && html === previous && active)) return false;
         previous = html;
-        const tab = template.content.firstElementChild.cloneNode(true);
+        const tab = blueprint.cloneNode(true);
         const label = tab.querySelector('.label');
         label.append(...content.childNodes);
         const text = label.textContent;
@@ -194,7 +164,7 @@ function createTabStrip(onChange) {
         tab.dataset.openSide = options.openSide;
         if (options.openSide === 'left') tabs.prepend(tab);
         else tabs.append(tab);
-        tab.getBoundingClientRect(); // Establish width zero before opening.
+        tab.getBoundingClientRect(); // Establish the collapsed size before opening.
         active = tab;
         trimHistory();
         return true;
@@ -205,8 +175,10 @@ function createTabStrip(onChange) {
         if (!tab || tab.inert) return;
         if (event.target.closest('.close')) {
             closeMotion(tab);
-        } else {
+        } else if (blueprint === defaultTab || event.target.closest('.select')) {
             active = tab;
+        } else {
+            return;
         }
         onChange();
     });
@@ -215,6 +187,28 @@ function createTabStrip(onChange) {
         get activeCharacterCount() { return characterCounts.get(active) ?? 0; },
         get size() { return announcements.size; },
         append: appendTab, layout, trimHistory,
+        setView(direction, customTab) {
+            const next = customTab ?? defaultTab;
+            const nextStrategy = tabLayouts[direction];
+            for (const tab of announcements) {
+                if (nextStrategy !== strategy) {
+                    tab.style.removeProperty(strategy.dimension);
+                    tab.classList.remove('narrow', 'icon-only', 'overflowing');
+                }
+                if (next === blueprint) continue;
+                const body = next.cloneNode(true);
+                const label = tab.querySelector('.label');
+                textAnimations.get(label)?.animation.cancel();
+                textAnimations.delete(label);
+                body.querySelector('.label').append(...label.childNodes);
+                body.querySelector('.select').title = body.querySelector('.label').textContent;
+                tab.replaceChildren(...body.childNodes);
+            }
+            blueprint = next;
+            strategy = nextStrategy;
+            rail.dataset.layout = direction;
+            tabs.dataset.layout = direction;
+        },
         finishThemeMotion() {
             for (const tab of tabs.children) {
                 if (announcements.has(tab)) delete tab.dataset.openSide;

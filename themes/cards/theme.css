@@ -1,0 +1,20 @@
+:root {
+    --card-height: 72;
+    --surface: #f5f5f0; --ink: #263730; --accent: #347158;
+}
+:root[data-color="dark"] { --surface: #202b26; --ink: #edf3e9; --accent: #afdcaf; }
+.chrome { position: absolute; inset: 0 auto 0 0; width: min(360px, 100vw); padding: 8px; color: var(--ink); }
+#rail { height: 100%; }
+#tabs { overflow: hidden; flex: 0 1 auto; }
+#pause, .window-controls, footer { display: none; }
+#new-tab { flex: none; align-self: flex-start; padding: 5px; color: var(--ink); background: var(--surface); border-radius: 6px; }
+.chrome svg { display: block; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; }
+.tab { overflow: hidden; }
+.card {
+    position: absolute; inset: 2px 0; display: flex; align-items: center; gap: 8px;
+    background: var(--surface); border-inline-start: 3px solid transparent;
+    border-radius: 8px; padding: 8px 12px; opacity: var(--card-opacity, 1);
+}
+.active .card { border-color: var(--accent); }
+.select { display: flex; align-items: center; min-width: 0; flex: 1; height: 100%; padding: 0; }
+.close { flex: none; padding: 4px; font-size: 18px; }
