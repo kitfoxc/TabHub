@@ -24,8 +24,10 @@ const settingHelp = {
     minWidth: '可见标签的宽度下限。空间不足时减少可见标签数量。',
     maxWidth: '固定模式的统一宽度上限。空间不足时所有可见标签等宽缩小。',
     recentCount: '按打开顺序保留最近几条标签的宽度。旧标签都缩至最小宽度后，这组才按相同百分比缩减各自的文字区域。',
-    openTiming: '可等当前公告读完、按固定间隔弹出，或在指定范围内随机等待。',
-    openInterval: '固定模式每隔指定秒数弹出一条。等待读完模式也以此为最短间隔。',
+    openTiming: '可按活动公告字数计算间隔、使用固定间隔或随机等待。',
+    messageBaseInterval: '按字数轮播时，每轮至少等待的时间。',
+    messageCharInterval: '字数乘以每字间隔，再与保底间隔取较大值。填 0 只使用保底间隔。',
+    openInterval: '固定模式每隔指定秒数弹出一条。',
     randomMin: '随机模式每次弹出前至少等待的秒数。',
     randomMax: '随机模式每次弹出前至多等待的秒数。',
     closeInterval: '每隔指定秒数自动关闭一个标签，可以关到空栏。填 0 停用。',
@@ -116,7 +118,8 @@ function updatePanel() {
     form.elements.recentCount.parentElement.hidden = !adaptive;
     const random = options.openTiming === 'random';
     for (const key of ['randomMin', 'randomMax']) form.elements[key].parentElement.hidden = !random;
-    form.elements.openInterval.parentElement.hidden = random;
+    form.elements.openInterval.parentElement.hidden = options.openTiming !== 'fixed';
+    for (const key of ['messageBaseInterval', 'messageCharInterval']) form.elements[key].parentElement.hidden = options.openTiming !== 'message';
     for (const key of ['weightStart', 'weightStep', 'weightReset']) form.elements[key].parentElement.hidden = options.draw !== 'weighted';
 }
 function fillPanel() {

@@ -47,6 +47,8 @@ function createTabStrip(onChange) {
     // Opening order is independent of both visual placement and user selection.
     const announcements = new Set();
     let previous;
+    const segmenter = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter() : null;
+    const characterCounts = new WeakMap();
 
     function closeMotion(tab) {
         if (!announcements.delete(tab)) return;
@@ -88,9 +90,7 @@ function createTabStrip(onChange) {
         const cycle = travel + options.scrollHold * 2;
         const signature = [distance, options.scrollSpeed, options.scrollHold, options.scrollRepeat].join('/');
         const existing = textAnimations.get(label);
-        if (existing?.signature === signature) {
-            return Math.max(0, existing.firstPass - existing.animation.currentTime);
-        }
+        if (existing?.signature === signature) return;
         existing?.animation.cancel();
         const end = 'translateX(-' + distance + 'px)';
         const frames = [
@@ -103,9 +103,7 @@ function createTabStrip(onChange) {
             delay: transition, duration: cycle,
             iterations: options.scrollRepeat === 'loop' ? Infinity : 1, fill: 'both'
         });
-        const firstPass = transition + cycle;
-        textAnimations.set(label, { animation, signature, firstPass });
-        return firstPass;
+        textAnimations.set(label, { animation, signature });
     }
 
     function layout() {
@@ -144,7 +142,6 @@ function createTabStrip(onChange) {
         });
         const widths = allocateTabWidths(items.map(item => item.textWidth), titleInset + closeInset, capacity, options);
 
-        let remaining = 0;
         for (const [index, { tab, label, textWidth }] of items.entries()) {
             const width = widths[index];
             const current = tab === active;
@@ -161,8 +158,7 @@ function createTabStrip(onChange) {
             const allowScroll = options.scrollScope === 'all' || (current && options.scrollScope === 'active');
             if (allowScroll && clipWidth > 0 && distance > 0 && !iconOnly && !document.hidden && !reducedMotion.matches) {
                 scrolling.add(label);
-                const readTime = scrollLabel(label, distance, duration);
-                if (current) remaining = readTime;
+                scrollLabel(label, distance, duration);
             }
         }
         for (const [label, state] of textAnimations) {
@@ -170,7 +166,6 @@ function createTabStrip(onChange) {
             state.animation.cancel();
             textAnimations.delete(label);
         }
-        return remaining;
     }
 
     function closeCandidates() {
@@ -191,7 +186,10 @@ function createTabStrip(onChange) {
         const tab = template.content.firstElementChild.cloneNode(true);
         const label = tab.querySelector('.label');
         label.append(...content.childNodes);
-        tab.querySelector('.select').title = label.textContent;
+        const text = label.textContent;
+        tab.querySelector('.select').title = text;
+        const characters = segmenter ? Array.from(segmenter.segment(text), part => part.segment) : Array.from(text);
+        characterCounts.set(tab, characters.filter(character => /\S/u.test(character)).length);
         announcements.add(tab);
         tab.dataset.openSide = options.openSide;
         if (options.openSide === 'left') tabs.prepend(tab);
@@ -214,6 +212,7 @@ function createTabStrip(onChange) {
     });
     reducedMotion.addEventListener('change', onChange);
     return {
+        get activeCharacterCount() { return characterCounts.get(active) ?? 0; },
         get size() { return announcements.size; },
         append: appendTab, layout, trimHistory,
         finishThemeMotion() {

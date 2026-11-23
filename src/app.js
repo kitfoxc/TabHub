@@ -10,7 +10,7 @@ let paused = false;
 let timer;
 let nextOpenAt = 0;
 let nextCloseAt = Infinity;
-let readableAt = 0;
+let messageOpenedAt = null;
 let suspendedAt = null;
 let suspendedDuration = 0;
 
@@ -25,7 +25,12 @@ function applyMessageStyle() {
 function showNext(manual = false) {
     if (!options.limit) return;
     const entry = source.next(options);
-    return entry != null && strip.append(formatMessage(entry, options.variables === 'on'), manual);
+    return entry != null && appendAnnouncement(formatMessage(entry, options.variables === 'on'), manual);
+}
+function appendAnnouncement(content, manual) {
+    const created = strip.append(content, manual);
+    if (created) messageOpenedAt = now();
+    return created;
 }
 // Deadlines are measured in visible, unpaused time.
 function now() {
@@ -40,7 +45,9 @@ function openDelay() {
 }
 
 function openingDeadline() {
-    return options.openTiming === 'message' ? Math.max(nextOpenAt, readableAt) : nextOpenAt;
+    if (options.openTiming !== 'message' || messageOpenedAt === null) return nextOpenAt;
+    const characterInterval = strip.activeCharacterCount * options.messageCharInterval;
+    return messageOpenedAt + 1000 * Math.max(options.messageBaseInterval, characterInterval);
 }
 
 function armTimer() {
@@ -48,7 +55,8 @@ function armTimer() {
     if (!strip.size || !options.closeInterval) nextCloseAt = Infinity;
     else if (nextCloseAt === Infinity) nextCloseAt = now() + options.closeInterval * 1000;
     if (suspendedAt !== null || !options.limit) return;
-    timer = setTimeout(tick, Math.ceil(Math.max(0, Math.min(openingDeadline(), nextCloseAt) - now())));
+    const remaining = Math.min(openingDeadline(), nextCloseAt) - now();
+    timer = setTimeout(tick, Math.min(2_147_483_647, Math.ceil(Math.max(0, remaining))));
 }
 
 function tick() {
@@ -63,6 +71,7 @@ function tick() {
     }
     if (openDue) {
         nextOpenAt = time + openDelay();
+        messageOpenedAt = time;
         showNext();
     }
     refresh();
@@ -79,7 +88,7 @@ function syncPlayback() {
 }
 
 function refresh() {
-    readableAt = now() + strip.layout();
+    strip.layout();
     armTimer();
 }
 
@@ -112,9 +121,10 @@ async function applyHubSettings(value) {
     updateStatus();
     const mode = options.openTiming;
     if (before.openTiming !== mode || !before.limit ||
-        (mode !== 'random' && before.openInterval !== options.openInterval) ||
+        (mode === 'fixed' && before.openInterval !== options.openInterval) ||
         (mode === 'random' && (before.randomMin !== options.randomMin || before.randomMax !== options.randomMax))) {
         nextOpenAt = now() + openDelay();
+        messageOpenedAt = mode === 'message' ? now() : null;
     }
     if (before.closeInterval !== options.closeInterval) nextCloseAt = Infinity;
     strip.trimHistory();

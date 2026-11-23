@@ -61,7 +61,7 @@ async function executePacket(packet) {
                 if (typeof packet.text !== 'string' || !packet.text.trim()) throw new Error('公告为空');
                 const label = document.createElement('span');
                 label.textContent = packet.text;
-                if (!strip.append(label, true)) throw new Error('标签数量上限为 0');
+                if (!appendAnnouncement(label, true)) throw new Error('标签数量上限为 0');
                 refresh();
                 result = '已创建标签';
                 break;

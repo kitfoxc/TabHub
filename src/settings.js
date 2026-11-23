@@ -40,7 +40,9 @@ const sections = {
         recentCount: numeric('优先保留宽度的最近标签数', 3, 1, 32)
     },
     '弹出与关闭': {
-        openTiming: choice('弹出时机', 'message', { message: '等当前公告读完', fixed: '固定间隔', random: '随机间隔' }),
+        openTiming: choice('弹出时机', 'message', { message: '按活动公告字数', fixed: '固定间隔', random: '随机间隔' }),
+        messageBaseInterval: numeric('保底间隔（秒）', 10, .1, 86400, .1),
+        messageCharInterval: numeric('每字间隔（秒）', .2, 0, 60, .01),
         openInterval: numeric('弹出间隔（秒）', 10, .1, 86400, .1),
         randomMin: numeric('最短等待（秒）', 5, .1, 86400, .1),
         randomMax: numeric('最长等待（秒）', 15, .1, 86400, .1),
@@ -78,6 +80,7 @@ function restoreProfile(saved) {
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) throw new Error('配置应为 JSON 对象。');
     const restored = { ...defaults };
     for (const key of Object.keys(fields)) if (Object.hasOwn(saved, key)) restored[key] = saved[key];
+    if (!Object.hasOwn(saved, 'messageBaseInterval')) restored.messageBaseInterval = restored.openInterval;
     if (!Object.hasOwn(themeChoices, restored.themeId)) restored.themeId = 'default';
     validate(restored);
     return restored;
