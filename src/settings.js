@@ -1,43 +1,12 @@
 'use strict';
 
-const initialMessages = [
-    '我对普通的人类没有兴趣！',
-    '在虚构的故事当中寻求真实感的人脑袋一定有问题！',
-    '保存用、鉴赏用、传教用。',
-    '我们所经历的每个平凡的日常，也许就是连续发生的奇迹。',
-    '可怜即可爱！',
-    '现在是 {{{time:y}}} 年 {{{time:M}}} 月 {{{time:d}}} 日 {{{time:hh}}}:{{{time:mm}}}:{{{time:ss}}} UTC{{{time:utcs}}}',
-    {
-        type: 'queue',
-        content: [
-            '这是一段连续的消息队列',
-            '抽取到此消息队列时',
-            '会依次展示队列中的消息',
-            '直到队列结束',
-        ]
-    },
-    {
-        type: 'pack',
-        conditions: [
-            {
-                condition: 'date_check',
-                date: '6/1'
-            }
-        ],
-        content: [
-            '这是一条只会在儿童节出现的消息'
-        ]
-    },
-];
-
 // Each setting is declared once. These definitions drive the panel, defaults and validation.
 const numeric = (label, value, min, max, step = 1) => ({ label, value, min, max, step });
 const choice = (label, value, choices) => ({ label, value, choices });
 const modes = { full: '完整显示', compact: '压缩显示' };
 const sides = { left: '左侧', right: '右侧' };
 const sections = {
-    '公告内容': {
-        messages: { label: '公告列表', value: initialMessages },
+    '公告抽取': {
         draw: choice('抽取方式', 'weighted', { weighted: '加权随机', average: '均匀随机' }),
         variables: choice('时间变量', 'on', { on: '启用', off: '关闭' }),
         weightStart: numeric('初始权重', 1, 1, 1000),
@@ -76,22 +45,12 @@ const sections = {
 const fields = Object.assign({}, ...Object.values(sections));
 const defaults = Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, field.value]));
 const storageKey = 'tabhub.settings.v1';
+const messageBackupKey = 'tabhub.messages.backup.v1';
 const legacyKey = 'echo-moji.hub.settings.v1';
 const form = document.getElementById('options');
 const dialog = document.getElementById('settings');
 const sectionSelect = document.getElementById('section');
 const feedback = document.getElementById('feedback');
-
-function validEntry(entry, depth = 0) {
-    if (depth > 32) return false;
-    if (typeof entry === 'string') return true;
-    const segment = part => typeof part === 'string' || typeof part?.text === 'string';
-    if (Array.isArray(entry)) return entry.every(segment);
-    if (entry?.type === 'queue' || entry?.type === 'pack') {
-        return Array.isArray(entry.content) && entry.content.every(part => validEntry(part, depth + 1));
-    }
-    return segment(entry);
-}
 
 function validate(value) {
     for (const [key, field] of Object.entries(fields)) {
@@ -100,8 +59,7 @@ function validate(value) {
         if (field.choices) valid = typeof v === 'string' && Object.hasOwn(field.choices, v);
         else if (field.min !== undefined) {
             valid = Number.isFinite(v) && v >= field.min && v <= field.max && (field.step !== 1 || Number.isInteger(v));
-        } else if (key === 'messages') valid = Array.isArray(v) && v.every(entry => validEntry(entry));
-        else valid = typeof v === 'string';
+        } else valid = typeof v === 'string';
         if (!valid) throw new Error('请检查「' + field.label + '」。');
     }
     if (value.minWidth > value.maxWidth) throw new Error('最小宽度须小于或等于最大宽度。');
@@ -124,8 +82,16 @@ let options = { ...defaults };
 let loadNotice = '';
 try {
     const raw = localStorage.getItem(storageKey) ?? localStorage.getItem(legacyKey);
-    if (raw) options = restoreProfile(JSON.parse(raw));
+    if (raw) {
+        const saved = JSON.parse(raw);
+        options = restoreProfile(saved);
+        backupMessages(saved);
+    }
 } catch { loadNotice = '未能载入已保存设置，当前使用默认配置。'; }
+
+function backupMessages(profile) {
+    if (Array.isArray(profile?.messages)) localStorage.setItem(messageBackupKey, JSON.stringify(profile.messages));
+}
 
 function applyOptions(value) {
     validate(value);
@@ -146,25 +112,6 @@ function button(text, action) {
     return btn;
 }
 
-function messageLines(entries) {
-    return entries.map(entry => {
-        if (typeof entry !== 'string' || !entry || entry.trim() !== entry ||
-            ['[', '{', '"'].includes(entry[0]) || /[\r\n]/.test(entry)) return JSON.stringify(entry);
-        return entry;
-    }).join('\n');
-}
-function parseLines(text) {
-    return text.split(/\r?\n/).flatMap((line, i) => {
-        if (!line.trim()) return [];
-        let entry = line;
-        try {
-            if (['[', '{', '"'].includes(line.trimStart()[0])) entry = JSON.parse(line);
-            if (!validEntry(entry)) throw new Error();
-        } catch { throw new Error('第 ' + (i + 1) + ' 行公告格式有误。'); }
-        return [entry];
-    });
-}
-
 function buildPanel() {
     for (const [name, group] of Object.entries(sections)) {
         sectionSelect.add(new Option(name));
@@ -176,7 +123,7 @@ function buildPanel() {
         for (const [key, field] of Object.entries(group)) {
             const label = document.createElement('label');
             label.textContent = field.label;
-            const tag = key === 'messages' ? 'textarea' : field.choices ? 'select' : 'input';
+            const tag = field.choices ? 'select' : 'input';
             const input = document.createElement(tag);
             input.name = key;
             label.append(input);
@@ -185,16 +132,7 @@ function buildPanel() {
                 for (const [value, text] of Object.entries(field.choices)) input.add(new Option(text, value));
             } else if (field.min !== undefined) {
                 Object.assign(input, { type: 'number', min: field.min, max: field.max, step: field.step, required: true });
-            } else if (key === 'messages') {
-                label.className = 'wide';
-                const note = document.createElement('small');
-                note.className = 'settings-note';
-                note.textContent = '每行一条公告。富文本、队列和条件包可写成单行 JSON。';
-                label.append(note);
-                grid.append(button('应用公告列表', () => {
-                    try { applyOptions({ ...options, messages: parseLines(input.value) }); }
-                    catch (e) { feedback.textContent = e.message; }
-                }));
+
             }
         }
         form.append(panel);
@@ -210,7 +148,10 @@ function buildPanel() {
             if (!selected) return;
             const profile = JSON.parse(await selected.text());
             if (Object.hasOwn(profile, 'version') && profile.version !== 1) throw new Error('配置版本不受支持。');
-            applyOptions(restoreProfile(profile.settings ?? profile));
+            const saved = profile.settings ?? profile;
+            const restored = restoreProfile(saved);
+            backupMessages(saved);
+            applyOptions(restored);
             fillPanel();
         } catch (e) { feedback.textContent = '导入失败。' + e.message; }
         finally { file.value = ''; }
@@ -222,6 +163,18 @@ function buildPanel() {
         link.href = url; link.download = 'tabhub.json'; link.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }), button('导入配置', () => file.click()), file);
+    transfer.append(button('下载旧版公告备份', () => {
+        try {
+            const saved = localStorage.getItem(messageBackupKey);
+            if (!saved) { feedback.textContent = '当前浏览器没有旧版公告备份。'; return; }
+            const fileUrl = URL.createObjectURL(new Blob(['const tabHubMessages = ' + saved + ';\n'], { type: 'text/javascript' }));
+            const link = document.createElement('a');
+            link.href = fileUrl;
+            link.download = 'messages.js';
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(fileUrl), 1000);
+        } catch { feedback.textContent = '无法读取旧版公告备份。'; }
+    }));
     form.append(transfer);
 }
 
@@ -234,20 +187,20 @@ function updatePanel() {
     for (const key of ['weightStart', 'weightStep', 'weightReset']) form.elements[key].parentElement.hidden = options.draw !== 'weighted';
 }
 function fillPanel() {
-    for (const key of Object.keys(fields)) form.elements[key].value = key === 'messages' ? messageLines(options.messages) : options[key];
+    for (const key of Object.keys(fields)) form.elements[key].value = options[key];
     updatePanel();
 }
 buildPanel();
 form.onsubmit = e => e.preventDefault();
 form.oninput = e => {
     const input = e.target;
-    if (!input.name || input.name === 'messages') return;
+    if (!input.name) return;
     const group = sections[sectionSelect.value];
     if (!group) return;
     const value = { ...options };
     for (const key of Object.keys(group)) {
         const field = form.elements[key];
-        if (key === 'messages' || field.parentElement.hidden) continue;
+        if (field.parentElement.hidden) continue;
         if (!field.checkValidity()) { feedback.textContent = '请检查「' + fields[key].label + '」的取值范围。'; return; }
         value[key] = field.type === 'number' ? field.valueAsNumber : field.value;
     }
@@ -258,7 +211,6 @@ sectionSelect.onchange = () => { updatePanel(); feedback.textContent = ''; };
 document.getElementById('restore').onclick = () => {
     const value = { ...options };
     for (const key of Object.keys(sections[sectionSelect.value])) value[key] = defaults[key];
-    if (sectionSelect.value === '公告内容' && !confirm('用默认公告和抽取设置替换当前内容？')) return;
     applyOptions(value); fillPanel();
 };
 document.getElementById('settings-button').onclick = () => {

@@ -89,7 +89,4 @@ output:not(:empty) { display: block; margin-top: 8px; }
 
 .section-picker { margin: 14px 0; }
 #options [hidden] { display: none; }
-#options label.wide { grid-column: 1 / -1; }
-textarea { resize: vertical; width: 100%; min-height: 9em; border: 1px solid #bbb; border-radius: 5px; padding: 8px; font: 13px/1.5 monospace; }
-.settings-note { font-size: 13px; color: #555; }
 .config-action { border: 1px solid #bbb; border-radius: 5px; background: white; padding: 6px 8px; }

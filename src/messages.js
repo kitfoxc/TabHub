@@ -49,8 +49,22 @@ function messagePool(entries, date) {
     return pool;
 }
 
+function validEntry(entry, depth = 0) {
+    if (depth > 32) return false;
+    if (typeof entry === 'string') return true;
+    const segment = part => typeof part === 'string' || typeof part?.text === 'string';
+    if (Array.isArray(entry)) return entry.every(segment);
+    if (entry?.type === 'queue' || entry?.type === 'pack') {
+        return Array.isArray(entry.content) && entry.content.every(part => validEntry(part, depth + 1));
+    }
+    return segment(entry);
+}
+
 class MessageSource {
-    constructor() { this.reset(); }
+    constructor(entries) {
+        this.entries = Array.isArray(entries) ? entries.filter(entry => validEntry(entry)) : [];
+        this.reset();
+    }
     reset() {
         this.day = null;
         this.queue = [];
@@ -59,7 +73,7 @@ class MessageSource {
     next(settings, date = new Date()) {
         if (this.day !== date.toDateString()) {
             this.day = date.toDateString();
-            this.pool = messagePool(settings.messages, date);
+            this.pool = messagePool(this.entries, date);
             this.weights = this.pool.map(() => settings.weightStart);
             this.last = -1;
         }

@@ -1,7 +1,7 @@
 'use strict';
 
 const pauseButton = document.getElementById('pause');
-const source = new MessageSource();
+const source = new MessageSource(typeof tabHubMessages === 'undefined' ? [] : tabHubMessages);
 const strip = createTabStrip(refresh);
 let paused = false;
 let timer;
@@ -94,7 +94,7 @@ function updateControls() {
 }
 window.addEventListener('hub-settings-change', event => {
     const before = event.detail;
-    if (before.messages !== options.messages || before.weightStart !== options.weightStart ||
+    if (before.weightStart !== options.weightStart ||
         before.weightStep !== options.weightStep || before.weightReset !== options.weightReset || before.draw !== options.draw) source.reset();
     updateStatus();
     const mode = options.openTiming;
