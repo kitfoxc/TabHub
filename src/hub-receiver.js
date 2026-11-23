@@ -4,14 +4,42 @@ const instance = broadcastId();
 const handled = new Set();
 let operations = Promise.resolve();
 const sendPacket = validHubId(hubId) && openHubChannel(receivePacket);
+let consoleSession;
+let presenceTimer;
+let pageActive = true;
 
-function announce(type) {
-    sendPacket?.({ type, hub: hubId, instance });
+function sleepBroadcast() {
+    clearTimeout(presenceTimer);
+    presenceTimer = undefined;
+    consoleSession = undefined;
+    handled.clear();
+}
+
+function announce(type, data = {}) {
+    sendPacket({ type, hub: hubId, instance, session: consoleSession, ...data });
 }
 
 function receivePacket(packet) {
+    if (!pageActive) return;
     if (packet.type === 'discover') {
-        announce('present');
+        if (typeof packet.session !== 'string' || (packet.instance && packet.instance !== instance)) return;
+        if (consoleSession !== packet.session) handled.clear();
+        consoleSession = packet.session;
+        clearTimeout(presenceTimer);
+        presenceTimer = setTimeout(sleepBroadcast, presenceTimeout);
+        if (Array.isArray(packet.knownInstances) && packet.knownInstances.includes(instance)) {
+            announce('present');
+            return;
+        }
+        // Read the last applied settings once any accepted commands have finished.
+        operations.then(() => {
+            if (consoleSession === packet.session) announce('present', { settings: options });
+        });
+        return;
+    }
+    if (!consoleSession || packet.session !== consoleSession) return;
+    if (packet.type === 'console-gone') {
+        sleepBroadcast();
         return;
     }
     if (packet.instance !== instance || packet.hub !== hubId || typeof packet.id !== 'string') return;
@@ -51,11 +79,19 @@ async function executePacket(packet) {
     } catch (error) {
         result = packet.type === 'configure' ? '配置应用失败，请检查字段和主题资源' : error.message;
     }
-    sendPacket({ type: 'ack', id: packet.id, hub: hubId, instance, result });
+    if (consoleSession === packet.session) announce('ack', { id: packet.id, result });
 }
 
 if (sendPacket) {
-    announce('present');
-    window.addEventListener('pageshow', () => announce('present'));
-    window.addEventListener('pagehide', () => announce('gone'));
+    announce('ready');
+    window.addEventListener('pageshow', () => {
+        if (pageActive) return;
+        pageActive = true;
+        announce('ready');
+    });
+    window.addEventListener('pagehide', () => {
+        if (consoleSession) announce('gone');
+        pageActive = false;
+        sleepBroadcast();
+    });
 }

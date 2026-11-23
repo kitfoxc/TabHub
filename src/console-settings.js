@@ -13,6 +13,9 @@ const settingHelp = {
     weightStart: '建立公告池时给每条公告分配的初始权重。仅用于加权随机。',
     weightStep: '每次加权抽取增加各条公告的权重。数值越大，冷却中的公告恢复得越快。',
     weightReset: '决定抽中后权重降到多低。比例越大，公告通常越晚重新进入候选池。',
+    messageFont: '留空使用主题字体。可输入本机字体，或用逗号分隔多个备用字体。',
+    messageSize: '使用主题布局的标称像素，并随显示页的缩放比例变化。0 使用主题字号。',
+    messageAlign: '设置完整文字在标签内的对齐。文字溢出时从开头显示，以便阅读和滚动。',
     live: '状态栏左侧的直播状态。留空隐藏。',
     topic: '状态栏中的本场主题。留空隐藏。',
     detail: '状态栏右侧的补充信息。留空隐藏。',
@@ -75,6 +78,9 @@ function buildPanel() {
                 for (const [value, text] of Object.entries(field.choices)) input.add(new Option(text, value));
             } else if (field.min !== undefined) {
                 Object.assign(input, { type: 'number', min: field.min, max: field.max, step: field.step, required: true });
+            } else if (field.maxLength !== undefined) {
+                input.maxLength = field.maxLength;
+                input.placeholder = '跟随主题';
             }
         }
         form.append(panel);

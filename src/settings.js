@@ -22,6 +22,11 @@ const sections = {
         weightStep: numeric('每轮增加权重', 1, 1, 1000),
         weightReset: numeric('抽中后冷却比例', .35, 0, 1, .01)
     },
+    '消息文字': {
+        messageFont: { label: '字体', value: '', maxLength: 200 },
+        messageSize: numeric('字号（px，0 为跟随主题）', 0, 0, 72),
+        messageAlign: choice('对齐方向', 'left', { left: '左对齐', center: '居中', right: '右对齐' })
+    },
     '状态栏': {
         live: { label: '直播状态', value: '直播中' },
         topic: { label: '本场主题', value: '自由交流' },
@@ -61,9 +66,10 @@ function validate(value) {
         if (field.choices) valid = typeof v === 'string' && Object.hasOwn(field.choices, v);
         else if (field.min !== undefined) {
             valid = Number.isFinite(v) && v >= field.min && v <= field.max && (field.step !== 1 || Number.isInteger(v));
-        } else valid = typeof v === 'string';
+        } else valid = typeof v === 'string' && (field.maxLength === undefined || v.length <= field.maxLength);
         if (!valid) throw new Error('请检查「' + field.label + '」。');
     }
+    if (value.messageFont.trim() && !CSS.supports('font-family', value.messageFont)) throw new Error('字体格式无效，请输入字体名称或用逗号分隔的字体列表。');
     if (value.fitText === 'off' && value.minWidth > value.maxWidth) throw new Error('最小宽度须小于或等于最大宽度。');
     if (value.randomMin > value.randomMax) throw new Error('最短等待须小于或等于最长等待。');
 }

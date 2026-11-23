@@ -1,5 +1,8 @@
 'use strict';
 
+const discoveryInterval = 5000;
+const presenceTimeout = 18000;
+
 // Scope copies of TabHub in different installation folders independently.
 function openHubChannel(receive) {
     const name = 'tabhub.v1:' + new URL('.', location.href).href;

@@ -4,6 +4,7 @@ const byId = id => document.getElementById(id);
 const hubSelect = byId('hub');
 const peers = new Map();
 const profiles = new Map(diskConfig.hubs);
+const editedProfiles = new Set();
 let baseSettings = diskConfig.settings;
 let current = profiles.has('main') ? 'main' : profiles.keys().next().value ?? 'main';
 let options = profiles.get(current) ?? baseSettings;
@@ -13,6 +14,8 @@ const receipts = new Map();
 const configResults = new Map();
 let delivery = new Map();
 const transmit = openHubChannel(onPacket);
+const session = transmit && broadcastId();
+let discoverTimer;
 
 function selectHub(id) {
     current = id;
@@ -58,7 +61,7 @@ function request(peer, type, payload, report) {
     };
     const timer = setTimeout(() => finish('未收到回执'), 5000);
     receipts.set(id, { peer, finish });
-    transmit({ type, id, instance: peer.instance, hub: peer.hub, ...payload });
+    transmit({ type, id, instance: peer.instance, hub: peer.hub, session, ...payload });
 }
 function syncPeer(peer) {
     const settings = profiles.get(peer.hub);
@@ -78,15 +81,33 @@ function syncPeer(peer) {
 }
 function onPacket(packet) {
     if (!validHubId(packet.hub) || typeof packet.instance !== 'string') return;
+    if (packet.type === 'ready') {
+        if (discoverTimer !== undefined) transmit({ type: 'discover', session, instance: packet.instance });
+        return;
+    }
+    if (packet.session !== session) return;
     const peer = peers.get(packet.instance);
     if (packet.type === 'present') {
+        if (discoverTimer === undefined) return;
         if (peer) { peer.seen = Date.now(); return; }
-        const added = { hub: packet.hub, instance: packet.instance, seen: Date.now(), sequence: 0 };
+        const firstForHub = ![...peers.values()].some(p => p.hub === packet.hub);
+        let liveSettings;
+        try { liveSettings = restoreProfile(packet.settings); }
+        catch { return; }
+        const added = { hub: packet.hub, instance: packet.instance, seen: Date.now(), sequence: 0, status: '已读取显示端设置' };
         writeLog(packet.hub + ' · 已上线');
         peers.set(packet.instance, added);
-        if (!profiles.has(packet.hub)) profiles.set(packet.hub, { ...baseSettings });
+        if (firstForHub && !editedProfiles.has(packet.hub)) {
+            profiles.set(packet.hub, liveSettings);
+            configResults.set(packet.hub, added.status);
+            if (current === packet.hub) {
+                options = liveSettings;
+                fillPanel();
+                showConfigStatus();
+            }
+        }
         renderHubs();
-        syncPeer(added);
+        if (editedProfiles.has(packet.hub)) syncPeer(added);
     } else if (packet.type === 'gone' && peer) {
         forgetPeer(peer);
         renderHubs();
@@ -107,6 +128,7 @@ function applyOptions(value) {
     validate(value);
     options = value;
     profiles.set(current, value);
+    editedProfiles.add(current);
     configResults.set(current, '离线，下次上线时同步');
     showConfigStatus();
     for (const peer of peers.values()) if (peer.hub === current) syncPeer(peer);
@@ -116,10 +138,13 @@ function importConfig(data) {
     const loaded = readConfig(data);
     baseSettings = loaded.settings;
     // Import all named profiles and keep other Hubs in this session.
-    for (const [id, value] of loaded.hubs) profiles.set(id, value);
+    for (const [id, value] of loaded.hubs) {
+        profiles.set(id, value);
+        editedProfiles.add(id);
+    }
     renderHubs();
     selectHub(current);
-    for (const peer of peers.values()) syncPeer(peer);
+    for (const peer of peers.values()) if (loaded.hubs.has(peer.hub)) syncPeer(peer);
     byId('feedback').textContent = '已合入配置。保存后可在重启时恢复。';
 }
 function dispatch(type) {
@@ -179,11 +204,31 @@ byId('feedback').textContent = configNotice;
 writeLog(transmit ? '广播频道已打开，等待显示端。' : '当前环境无法打开广播频道。');
 if (transmit) {
     function discover() {
+        const cutoff = Date.now() - presenceTimeout;
+        let changed = false;
         for (const peer of peers.values()) {
-            if (Date.now() - peer.seen > 18000) { forgetPeer(peer); renderHubs(); }
+            if (peer.seen > cutoff) continue;
+            forgetPeer(peer);
+            changed = true;
         }
-        transmit({ type: 'discover' });
+        if (changed) renderHubs();
+        transmit({ type: 'discover', session, knownInstances: [...peers.keys()] });
     }
-    discover();
-    setInterval(discover, 5000);
+    function stopDiscovery() {
+        if (discoverTimer === undefined) return;
+        clearInterval(discoverTimer);
+        discoverTimer = undefined;
+        transmit({ type: 'console-gone', session });
+    }
+    function syncDiscovery() {
+        if (document.hidden) stopDiscovery();
+        else if (discoverTimer === undefined) {
+            discoverTimer = setInterval(discover, discoveryInterval);
+            discover();
+        }
+    }
+    document.addEventListener('visibilitychange', syncDiscovery);
+    window.addEventListener('pageshow', syncDiscovery);
+    window.addEventListener('pagehide', stopDiscovery);
+    syncDiscovery();
 }

@@ -3,6 +3,7 @@
 const hubId = new URLSearchParams(location.search).get('hub') || 'main';
 let options = diskConfig.hubs.get(hubId) ?? diskConfig.settings;
 const pauseButton = document.getElementById('pause');
+const messageStyle = document.documentElement.style;
 const source = new MessageSource(typeof tabHubMessages === 'undefined' ? [] : tabHubMessages);
 const strip = createTabStrip(refresh);
 let paused = false;
@@ -15,6 +16,11 @@ let suspendedDuration = 0;
 
 function updateStatus() {
     for (const id of ['live', 'topic', 'detail']) document.getElementById(id).textContent = options[id];
+}
+function applyMessageStyle() {
+    messageStyle.setProperty('--message-font-family', options.messageFont.trim());
+    messageStyle.setProperty('--message-font-size', options.messageSize ? options.messageSize + 'px' : '');
+    messageStyle.setProperty('--message-align', options.messageAlign);
 }
 function showNext(manual = false) {
     if (!options.limit) return;
@@ -99,6 +105,7 @@ async function applyHubSettings(value) {
     if (!await switchTheme(value.themeId)) return false;
     const before = options;
     options = value;
+    applyMessageStyle();
     if (before.colorMode !== options.colorMode) applyPalette(options.colorMode);
     if (before.weightStart !== options.weightStart ||
         before.weightStep !== options.weightStep || before.weightReset !== options.weightReset || before.draw !== options.draw) source.reset();
@@ -125,6 +132,7 @@ switchTheme(options.themeId).then(refresh).catch(() => {
 });
 updateStatus();
 updateControls();
+applyMessageStyle();
 nextOpenAt = now() + (options.openTiming === 'random' ? openDelay() : 0);
 syncPlayback();
 document.fonts.ready.then(refresh);
