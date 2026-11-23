@@ -25,7 +25,6 @@
 .tool {
     position: fixed; top: 4.86%; height: 5.55%; border-radius: 2px; padding: 0;
 }
-#settings-button { left: .98%; width: 3.46%; }
 #pause { left: 4.49%; width: 3.81%; }
 .tool:hover, .tool[aria-pressed=true] { background: var(--hover); }
 .tool[aria-pressed=true] { box-shadow: inset 0 -2px currentColor; }

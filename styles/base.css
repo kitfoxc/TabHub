@@ -15,9 +15,13 @@ button:focus-visible { outline: 2px solid #306bb1; outline-offset: -3px; }
 .tab.shelved { visibility: hidden; }
 .tab.active { z-index: 1; }
 .favicon { flex: none; }
-.clip { min-width: 0; overflow: hidden; white-space: nowrap; }
-.label { display: inline-block; width: max-content; }
-.overflowing .clip { mask-image: linear-gradient(90deg,#000 75%,transparent); }
+.clip { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-align: var(--message-align, left); }
+.label {
+    display: inline-block; width: max-content;
+    font-family: var(--message-font-family, inherit);
+    font-size: var(--message-font-size, inherit);
+}
+.overflowing .clip { text-align: left; mask-image: linear-gradient(90deg,#000 75%,transparent); }
 .narrow:not(.active, .was-active) .close { display: none; }
 .chrome .icon-only .select { padding: 0; gap: 0; justify-content: center; }
 .icon-only .clip { position: absolute; width: 0; }
