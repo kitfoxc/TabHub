@@ -66,6 +66,14 @@ async function executePacket(packet) {
                 result = '已创建标签';
                 break;
             }
+            case 'toggle':
+                setPaused(!paused);
+                result = paused ? '已暂停' : '已恢复';
+                break;
+            case 'clear':
+                clearAnnouncements();
+                result = '已清空公告';
+                break;
             case 'pause':
             case 'resume':
                 setPaused(packet.type === 'pause');

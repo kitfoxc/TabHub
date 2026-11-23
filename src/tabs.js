@@ -221,6 +221,14 @@ function createTabStrip(onChange) {
             }
             tabs.querySelectorAll('.leaving').forEach(tab => tab.remove());
         },
+        clear() {
+            for (const { animation } of textAnimations.values()) animation.cancel();
+            textAnimations.clear();
+            announcements.clear();
+            active = undefined;
+            previous = undefined;
+            tabs.replaceChildren();
+        },
         closeNext() {
             const victim = closeCandidates()[0] || active;
             if (victim) closeMotion(victim);

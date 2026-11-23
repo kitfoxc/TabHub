@@ -13,6 +13,8 @@ let nextCloseAt = Infinity;
 let messageOpenedAt = null;
 let suspendedAt = null;
 let suspendedDuration = 0;
+let hiddenAt = null;
+let hiddenDuration = 0;
 
 function updateStatus() {
     for (const id of ['live', 'topic', 'detail']) document.getElementById(id).textContent = options[id];
@@ -37,6 +39,10 @@ function now() {
     return (suspendedAt ?? performance.now()) - suspendedDuration;
 }
 
+function closingNow() {
+    return (hiddenAt ?? performance.now()) - hiddenDuration;
+}
+
 function openDelay() {
     if (options.openTiming === 'random') {
         return 1000 * (options.randomMin + Math.random() * (options.randomMax - options.randomMin));
@@ -53,17 +59,19 @@ function openingDeadline() {
 function armTimer() {
     clearTimeout(timer);
     if (!strip.size || !options.closeInterval) nextCloseAt = Infinity;
-    else if (nextCloseAt === Infinity) nextCloseAt = now() + options.closeInterval * 1000;
-    if (suspendedAt !== null || !options.limit) return;
-    const remaining = Math.min(openingDeadline(), nextCloseAt) - now();
+    else if (nextCloseAt === Infinity) nextCloseAt = closingNow() + options.closeInterval * 1000;
+    if (hiddenAt !== null) return;
+    const openRemaining = paused || !options.limit ? Infinity : openingDeadline() - now();
+    const remaining = Math.min(openRemaining, nextCloseAt - closingNow());
+    if (!Number.isFinite(remaining)) return;
     timer = setTimeout(tick, Math.min(2_147_483_647, Math.ceil(Math.max(0, remaining))));
 }
 
 function tick() {
     const time = now();
     // Commit near-simultaneous events in one layout rather than resizing twice in one frame.
-    const openDue = openingDeadline() <= time + 8;
-    const closeDue = nextCloseAt <= time + 8;
+    const openDue = !paused && options.limit && openingDeadline() <= time + 8;
+    const closeDue = nextCloseAt <= closingNow() + 8;
 
     if (closeDue) {
         strip.closeNext();
@@ -79,6 +87,11 @@ function tick() {
 
 function syncPlayback() {
     const time = performance.now();
+    if (document.hidden) hiddenAt ??= time;
+    else if (hiddenAt !== null) {
+        hiddenDuration += time - hiddenAt;
+        hiddenAt = null;
+    }
     if (paused || document.hidden) suspendedAt ??= time;
     else if (suspendedAt !== null) {
         suspendedDuration += time - suspendedAt;
@@ -90,6 +103,11 @@ function syncPlayback() {
 function refresh() {
     strip.layout();
     armTimer();
+}
+
+function clearAnnouncements() {
+    strip.clear();
+    refresh();
 }
 
 function nextTab() {
