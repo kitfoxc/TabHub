@@ -12,6 +12,7 @@
     <script defer src="messages.js"></script>
     <script defer src="src/message-source.js"></script>
     <script defer src="src/theme-manager.js"></script>
+    <script defer src="config.js"></script>
     <script defer src="src/settings.js"></script>
     <script defer src="src/tabs.js"></script>
     <script defer src="src/app.js"></script>
@@ -38,8 +39,8 @@
     <dialog id="settings" aria-labelledby="settings-title">
         <div class="heading"><h2 id="settings-title">TabHub 设置</h2><button id="dismiss" aria-label="关闭设置">×</button></div>
         <label class="section-picker">设置分组<select id="section"></select></label>
-        <form id="options"></form>
-        <div class="actions"><button id="restore" type="button">重置本组</button><button id="preview" type="button">预览新标签</button></div>
+        <form id="options" autocomplete="off"></form>
+        <div class="actions"><button id="restore" type="button">重置本组</button><button id="save-config" type="button">导出 config.js</button><button id="preview" type="button">预览新标签</button></div>
         <output id="feedback" role="status"></output>
     </dialog>
 </body>

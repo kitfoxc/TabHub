@@ -79,9 +79,7 @@ const settingHelp = {
     scrollHold: '文字在滚动开始和结束时各停留多久。1000 毫秒等于 1 秒。'
 };
 const defaults = Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, field.value]));
-const storageKey = 'tabhub.settings.v1';
-const messageBackupKey = 'tabhub.messages.backup.v1';
-const legacyKey = 'echo-moji.hub.settings.v1';
+const configPrefix = 'const tabHubConfig = ';
 const form = document.getElementById('options');
 const dialog = document.getElementById('settings');
 const sectionSelect = document.getElementById('section');
@@ -101,10 +99,10 @@ function validate(value) {
     if (value.randomMin > value.randomMax) throw new Error('最短等待须小于或等于最长等待。');
 }
 
-function restoreProfile(saved) {
+function restoreProfile(saved, allowEmpty = false) {
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) throw new Error('配置应为 JSON 对象。');
     const restored = { ...defaults };
-    if (!Object.keys(fields).some(key => Object.hasOwn(saved, key))) throw new Error('文件中没有 TabHub 设置。');
+    if (!(allowEmpty && Object.keys(saved).length === 0) && !Object.keys(fields).some(key => Object.hasOwn(saved, key))) throw new Error('文件中没有 TabHub 设置。');
     for (const key of Object.keys(fields)) if (Object.hasOwn(saved, key)) restored[key] = saved[key];
     if (saved.activeMode && saved.otherMode && !Object.hasOwn(saved, 'recentCount')) {
         Object.assign(restored, { recentCount: 1, recentMode: saved.activeMode, olderMode: saved.otherMode });
@@ -114,30 +112,47 @@ function restoreProfile(saved) {
     return restored;
 }
 
+function readProfile(profile) {
+    if (!profile || typeof profile !== 'object' || Array.isArray(profile)) throw new Error('配置应为 JSON 对象。');
+    if (Object.hasOwn(profile, 'version') && profile.version !== 1) throw new Error('配置版本不受支持。');
+    return profile.settings ?? profile;
+}
+
 let options = { ...defaults };
 let loadNotice = '';
+let importedMessages;
 try {
-    const raw = localStorage.getItem(storageKey) ?? localStorage.getItem(legacyKey);
-    if (raw) {
-        const saved = JSON.parse(raw);
-        options = restoreProfile(saved);
-        backupMessages(saved);
-    }
-} catch { loadNotice = '未能载入已保存设置，当前使用默认配置。'; }
-
-function backupMessages(profile) {
-    if (Array.isArray(profile?.messages)) localStorage.setItem(messageBackupKey, JSON.stringify(profile.messages));
+    if (typeof tabHubConfig !== 'undefined') options = restoreProfile(readProfile(tabHubConfig), true);
+    else loadNotice = '未能读取 config.js，当前使用默认配置。';
+} catch (error) {
+    loadNotice = 'config.js 无效，当前使用默认配置。' + error.message;
 }
 
 function applyOptions(value) {
     validate(value);
     const previous = options;
     options = value;
-    feedback.textContent = '';
-    try { localStorage.setItem(storageKey, JSON.stringify(value)); }
-    catch { feedback.textContent = '已在本次显示中生效。请导出配置以保存。'; }
+    feedback.textContent = '已应用到当前页面。导出 config.js 可保存。';
     window.dispatchEvent(new CustomEvent('hub-settings-change', { detail: previous }));
 }
+
+function downloadScript(filename, contents) {
+    const url = URL.createObjectURL(new Blob([contents], { type: 'text/javascript' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+document.getElementById('save-config').onclick = () => {
+    let settings;
+    try { settings = readPanel(); }
+    catch (error) { feedback.textContent = error.message; return; }
+    const data = JSON.stringify({ version: 1, settings }, null, 2);
+    downloadScript('config.js', configPrefix + data + ';\n');
+    feedback.textContent = '已请求下载。请用导出的 config.js 覆盖项目根目录中的同名文件。';
+};
 
 function button(text, action) {
     const btn = document.createElement('button');
@@ -162,6 +177,7 @@ function buildPanel() {
             const tag = field.choices ? 'select' : 'input';
             const input = document.createElement(tag);
             input.name = key;
+            input.autocomplete = 'off';
             label.title = settingHelp[key];
             label.append(input);
             grid.append(label);
@@ -178,40 +194,32 @@ function buildPanel() {
     const transfer = document.createElement('fieldset');
     transfer.dataset.section = '配置迁移';
     const file = document.createElement('input');
-    file.type = 'file'; file.accept = '.json,application/json'; file.hidden = true;
+    file.type = 'file';
+    file.accept = '.js,.json';
+    file.hidden = true;
+    const downloadMessages = button('下载导入的旧版公告', () => {
+        downloadScript('messages.js', 'const tabHubMessages = ' + JSON.stringify(importedMessages, null, 2) + ';\n');
+    });
+    downloadMessages.hidden = true;
     file.onchange = async () => {
         try {
             const selected = file.files[0];
             if (!selected) return;
-            const profile = JSON.parse(await selected.text());
-            if (Object.hasOwn(profile, 'version') && profile.version !== 1) throw new Error('配置版本不受支持。');
-            const saved = profile.settings ?? profile;
-            const restored = restoreProfile(saved);
-            backupMessages(saved);
-            applyOptions(restored);
+            const contents = (await selected.text()).trim();
+            const json = contents.startsWith(configPrefix) ? contents.slice(configPrefix.length).replace(/;$/, '') : contents;
+            const profile = JSON.parse(json);
+            const saved = readProfile(profile);
+            applyOptions(restoreProfile(saved, contents.startsWith(configPrefix)));
+            const messages = saved.messages ?? profile.messages;
+            if (Array.isArray(messages)) {
+                importedMessages = messages;
+                downloadMessages.hidden = false;
+            }
             fillPanel();
-        } catch (e) { feedback.textContent = '导入失败。' + e.message; }
+        } catch (error) { feedback.textContent = '导入失败。' + error.message; }
         finally { file.value = ''; }
     };
-    transfer.append(button('导出当前配置', () => {
-        const data = JSON.stringify({ version: 1, settings: options }, null, 2);
-        const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
-        const link = document.createElement('a');
-        link.href = url; link.download = 'tabhub.json'; link.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }), button('导入配置', () => file.click()), file);
-    transfer.append(button('下载旧版公告备份', () => {
-        try {
-            const saved = localStorage.getItem(messageBackupKey);
-            if (!saved) { feedback.textContent = '当前浏览器没有旧版公告备份。'; return; }
-            const fileUrl = URL.createObjectURL(new Blob(['const tabHubMessages = ' + saved + ';\n'], { type: 'text/javascript' }));
-            const link = document.createElement('a');
-            link.href = fileUrl;
-            link.download = 'messages.js';
-            link.click();
-            setTimeout(() => URL.revokeObjectURL(fileUrl), 1000);
-        } catch { feedback.textContent = '无法读取旧版公告备份。'; }
-    }));
+    transfer.append(button('导入配置', () => file.click()), downloadMessages, file);
     form.append(transfer);
 }
 
@@ -229,20 +237,21 @@ function fillPanel() {
 }
 buildPanel();
 form.onsubmit = e => e.preventDefault();
-form.oninput = e => {
-    const input = e.target;
-    if (!input.name) return;
-    const group = sections[sectionSelect.value];
-    if (!group) return;
+function readPanel() {
     const value = { ...options };
-    for (const key of Object.keys(group)) {
+    for (const key of Object.keys(sections[sectionSelect.value] ?? {})) {
         const field = form.elements[key];
         if (field.parentElement.hidden) continue;
-        if (!field.checkValidity()) { feedback.textContent = '请检查「' + fields[key].label + '」的取值范围。'; return; }
+        if (!field.checkValidity()) throw new Error('请检查「' + fields[key].label + '」的取值范围。');
         value[key] = field.type === 'number' ? field.valueAsNumber : field.value;
     }
-    try { applyOptions(value); updatePanel(); }
-    catch (err) { feedback.textContent = err.message; }
+    validate(value);
+    return value;
+}
+form.oninput = e => {
+    if (!e.target.name) return;
+    try { applyOptions(readPanel()); updatePanel(); }
+    catch (error) { feedback.textContent = error.message; }
 };
 sectionSelect.onchange = () => { updatePanel(); feedback.textContent = ''; };
 document.getElementById('restore').onclick = () => {
