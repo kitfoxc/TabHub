@@ -3,11 +3,11 @@
 const form = document.getElementById('options');
 const sectionSelect = document.getElementById('section');
 const feedback = document.getElementById('feedback');
-let importedMessages;
+
 
 const settingHelp = {
     themeId: '即时更换直播外框和标签动画。已打开的标签会保留。',
-    colorMode: '直播可固定使用深色或浅色。跟随系统使用 OBS 浏览器源报告的配色偏好。',
+    colorMode: '跟随 OBS 场景时，场景名中的 [dark] 或 [light] 决定配色。没有标记时跟随系统。',
     draw: '加权随机会降低刚抽中的公告再次出现的概率。均匀随机让可抽取的公告机会相同。',
     variables: '开启后，将公告里的时间占位符替换为显示时的本地日期和时间。',
     weightStart: '建立公告池时给每条公告分配的初始权重。仅用于加权随机。',
@@ -86,10 +86,6 @@ function buildPanel() {
     file.type = 'file';
     file.accept = '.js,.json';
     file.hidden = true;
-    const downloadMessages = button('下载导入的旧版公告', () => {
-        downloadScript('messages.js', 'const tabHubMessages = ' + JSON.stringify(importedMessages, null, 2) + ';\n');
-    });
-    downloadMessages.hidden = true;
     file.onchange = async () => {
         try {
             const selected = file.files[0];
@@ -98,14 +94,11 @@ function buildPanel() {
             const json = contents.startsWith(configPrefix) ? contents.slice(configPrefix.length).replace(/;$/, '') : contents;
             const profile = JSON.parse(json);
             importConfig(profile);
-            const messages = profile.settings?.messages ?? profile.messages;
-            importedMessages = messages;
-            downloadMessages.hidden = !Array.isArray(messages);
             fillPanel();
         } catch (error) { feedback.textContent = '导入失败。' + error.message; }
         finally { file.value = ''; }
     };
-    transfer.append(button('导入配置', () => file.click()), downloadMessages, file);
+    transfer.append(button('导入配置', () => file.click()), file);
     form.append(transfer);
 }
 

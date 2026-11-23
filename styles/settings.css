@@ -19,3 +19,8 @@ fieldset { min-width: 0; border: 0; padding: 0; margin: 8px 0; }
 output { display: block; white-space: pre-line; overflow-wrap: anywhere; }
 output:not(:empty) { margin-top: 8px; }
 [hidden] { display: none !important; }
+nav { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 12px; }
+nav [aria-pressed=true] { font-weight: 700; border-bottom: 3px solid #477cbd; }
+#entries li { margin-block: 12px; }
+#entries textarea { display: block; width: 100%; margin: 5px 0; }
+#log-list { max-height: 60vh; overflow: auto; overflow-wrap: anywhere; }

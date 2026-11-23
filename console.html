@@ -8,6 +8,9 @@
     <script defer src="config.js"></script>
     <script defer src="src/settings.js"></script>
     <script defer src="src/broadcast.js"></script>
+    <script defer src="messages.js"></script>
+    <script defer src="src/message-source.js"></script>
+    <script defer src="src/console-tools.js"></script>
     <script defer src="src/console.js"></script>
     <script defer src="src/console-settings.js"></script>
 </head>
@@ -21,7 +24,10 @@
         </div>
         <label>OBS 浏览器源 URL<input id="source-url" readonly></label>
     </section>
-    <section>
+    <nav aria-label="控制台分页">
+        <button data-page="cast" aria-pressed="true">广播</button><button data-page="preferences" aria-pressed="false">设置</button><button data-page="library" aria-pressed="false">公告列表</button><button data-page="logs" aria-pressed="false">日志</button>
+    </nav>
+    <section id="cast">
         <h2>广播</h2>
         <label>发送目标<select id="scope"><option value="current">当前 Hub</option><option value="selected">指定多个 Hub</option><option value="all">全部在线 Hub</option></select></label>
         <div id="recipients" hidden></div>
@@ -29,7 +35,7 @@
         <div class="actions"><button id="send" class="primary">发送公告</button><button data-command="pause">暂停轮播</button><button data-command="resume">恢复轮播</button><button data-command="next">下一条</button></div>
         <output id="delivery" role="status"></output>
     </section>
-    <section>
+    <section id="preferences" hidden>
         <h2>当前 Hub 设置</h2>
         <label>设置分组<select id="section"></select></label>
         <form id="options" autocomplete="off"></form>
@@ -37,6 +43,13 @@
         <output id="feedback" role="status"></output>
         <output id="applied" role="status"></output>
     </section>
+    <section id="library" hidden>
+        <h2>轮播公告</h2>
+        <ol id="entries"></ol>
+        <div class="actions"><select aria-label="新增条目类型" id="entry-kind"><option value="text">纯文本</option><option value="rich">富文本</option><option value="queue">队列</option><option value="pack">条件包</option></select><button id="add-entry">添加条目</button><button id="save-messages">保存 messages.js</button></div>
+        <output id="message-state" role="status"></output>
+    </section>
+    <section id="logs" hidden><h2>会话日志</h2><button id="clear-log">清空日志</button><ol id="log-list"></ol></section>
 </main>
 </body>
 </html>

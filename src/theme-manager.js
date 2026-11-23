@@ -5,10 +5,35 @@ const systemDark = matchMedia('(prefers-color-scheme: dark)');
 let activeTheme = 'default';
 let themeRequest = 0;
 
+let scenePalette;
+
 function applyPalette(mode) {
-    document.documentElement.dataset.color = mode === 'system' ? (systemDark.matches ? 'dark' : 'light') : mode;
+    const systemPalette = systemDark.matches ? 'dark' : 'light';
+    document.documentElement.dataset.color = mode === 'obs' ? scenePalette ?? systemPalette
+        : mode === 'system' ? systemPalette : mode;
 }
 systemDark.addEventListener('change', () => applyPalette(options.colorMode));
+
+function followObsScene() {
+    const obs = window.obsstudio;
+    if (!obs) return;
+
+    function updateScene(scene) {
+        if (typeof scene?.name !== 'string') return;
+        scenePalette = scene.name.match(/\[(dark|light)\]/i)?.[1].toLowerCase();
+        applyPalette(options.colorMode);
+    }
+
+    let sceneChanged = false;
+    window.addEventListener('obsSceneChanged', event => {
+        if (typeof event.detail?.name !== 'string') return;
+        sceneChanged = true;
+        updateScene(event.detail);
+    });
+    obs.getCurrentScene?.(scene => {
+        if (!sceneChanged) updateScene(scene);
+    });
+}
 
 function loadTheme(id) {
     if (themeSheets.has(id)) return themeSheets.get(id);
@@ -24,12 +49,7 @@ function loadTheme(id) {
         links.push(link);
         document.head.append(link);
     }));
-    const images = (themeCatalog[id].images ?? []).map(file => {
-        const image = new Image();
-        image.src = folder + file;
-        return image.decode();
-    });
-    const ready = Promise.all([...styles, ...images]).then(() => links).catch(error => {
+    const ready = Promise.all(styles).then(() => links).catch(error => {
         links.forEach(link => link.remove());
         themeSheets.delete(id);
         throw error;

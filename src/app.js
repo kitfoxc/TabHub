@@ -117,6 +117,7 @@ async function applyHubSettings(value) {
 }
 window.addEventListener('resize', refresh);
 document.addEventListener('visibilitychange', syncPlayback);
+followObsScene();
 applyPalette(options.colorMode);
 switchTheme(options.themeId).then(refresh).catch(() => {
     options = { ...options, themeId: activeTheme };

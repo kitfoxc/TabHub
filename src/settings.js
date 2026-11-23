@@ -2,7 +2,7 @@
 
 const themeCatalog = {
     default: { label: '默认' },
-    photoshop: { label: 'Photoshop', images: ['frame-light.png', 'frame-dark.png'] }
+    photoshop: { label: 'Photoshop' }
 };
 const themeChoices = Object.fromEntries(Object.entries(themeCatalog).map(([id, theme]) => [id, theme.label]));
 
@@ -13,7 +13,7 @@ const sides = { left: '左侧', right: '右侧' };
 const sections = {
     '界面主题': {
         themeId: choice('主题', 'default', themeChoices),
-        colorMode: choice('配色', 'light', { light: '浅色', dark: '深色', system: '跟随系统' })
+        colorMode: choice('配色', 'obs', { obs: '跟随 OBS 场景', light: '浅色', dark: '深色', system: '跟随系统' })
     },
     '公告抽取': {
         draw: choice('抽取方式', 'weighted', { weighted: '加权随机', average: '均匀随机' }),
@@ -68,45 +68,22 @@ function validate(value) {
     if (value.randomMin > value.randomMax) throw new Error('最短等待须小于或等于最长等待。');
 }
 
-function restoreProfile(saved, allowEmpty = false) {
+function restoreProfile(saved) {
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) throw new Error('配置应为 JSON 对象。');
     const restored = { ...defaults };
-    const legacyLayout = ['activeMode', 'otherMode', 'recentMode', 'olderMode'];
-    const recognized = [...Object.keys(fields), ...legacyLayout].some(key => Object.hasOwn(saved, key));
-    if (!recognized && !(allowEmpty && Object.keys(saved).length === 0)) {
-        throw new Error('文件中没有 TabHub 设置。');
-    }
     for (const key of Object.keys(fields)) if (Object.hasOwn(saved, key)) restored[key] = saved[key];
-    if (!Object.hasOwn(saved, 'fitText')) {
-        const recentMode = saved.recentMode ?? saved.activeMode;
-        const olderMode = saved.olderMode ?? saved.otherMode;
-        if (olderMode === 'compact' && (recentMode === 'compact' || saved.recentCount === 0)) {
-            restored.fitText = 'off';
-        }
-        if (saved.recentCount === 0 || (saved.activeMode && !Object.hasOwn(saved, 'recentCount'))) {
-            restored.recentCount = 1;
-        }
-    }
     if (!Object.hasOwn(themeChoices, restored.themeId)) restored.themeId = 'default';
     validate(restored);
     return restored;
 }
 
-function readProfile(profile) {
-    if (!profile || typeof profile !== 'object' || Array.isArray(profile)) throw new Error('配置应为 JSON 对象。');
-    if (Object.hasOwn(profile, 'version') && profile.version !== 1) throw new Error('配置版本不受支持。');
-    return profile.settings ?? profile;
-}
-
-
 function validHubId(id) {
     return typeof id === 'string' && id !== '__proto__' && /^[a-zA-Z0-9_-]{1,48}$/.test(id);
 }
 
-// v1 settings also serve as the starting point for newly discovered Hubs.
 function readConfig(data) {
     if (data?.version !== 2) {
-        return { settings: restoreProfile(readProfile(data), true), hubs: new Map() };
+        throw new Error('仅支持 version 2 配置。');
     }
     if (!data.hubs || typeof data.hubs !== 'object' || Array.isArray(data.hubs)) {
         throw new Error('缺少 Hub 配置列表。');
@@ -114,9 +91,9 @@ function readConfig(data) {
     const hubs = new Map();
     for (const [id, profile] of Object.entries(data.hubs)) {
         if (!validHubId(id)) throw new Error('Hub ID 无效。');
-        hubs.set(id, restoreProfile(profile, true));
+        hubs.set(id, restoreProfile(profile));
     }
-    return { settings: restoreProfile(data.settings ?? {}, true), hubs };
+    return { settings: restoreProfile(data.settings ?? {}), hubs };
 }
 
 let configNotice = '';

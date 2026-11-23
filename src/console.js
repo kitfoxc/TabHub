@@ -53,6 +53,7 @@ function request(peer, type, payload, report) {
     const finish = result => {
         clearTimeout(timer);
         receipts.delete(id);
+        writeLog(peer.hub + ' · ' + type + ' · ' + result);
         report(result);
     };
     const timer = setTimeout(() => finish('未收到回执'), 5000);
@@ -81,6 +82,7 @@ function onPacket(packet) {
     if (packet.type === 'present') {
         if (peer) { peer.seen = Date.now(); return; }
         const added = { hub: packet.hub, instance: packet.instance, seen: Date.now(), sequence: 0 };
+        writeLog(packet.hub + ' · 已上线');
         peers.set(packet.instance, added);
         if (!profiles.has(packet.hub)) profiles.set(packet.hub, { ...baseSettings });
         renderHubs();
@@ -94,6 +96,7 @@ function onPacket(packet) {
     }
 }
 function forgetPeer(peer) {
+    writeLog(peer.hub + ' · 已离线');
     peers.delete(peer.instance);
     if (![...peers.values()].some(p => p.hub === peer.hub)) {
         configResults.set(peer.hub, '离线，下次上线时同步');
@@ -110,18 +113,14 @@ function applyOptions(value) {
     byId('feedback').textContent = '会话配置已修改，保存后可在重启时恢复。';
 }
 function importConfig(data) {
-    if (data.version === 2) {
-        const loaded = readConfig(data);
-        baseSettings = loaded.settings;
-        // Import all named profiles and keep other Hubs in this session.
-        for (const [id, value] of loaded.hubs) profiles.set(id, value);
-        renderHubs();
-        selectHub(current);
-        for (const peer of peers.values()) syncPeer(peer);
-        byId('feedback').textContent = '已合入配置。保存后可在重启时恢复。';
-    } else {
-        applyOptions(restoreProfile(readProfile(data), true));
-    }
+    const loaded = readConfig(data);
+    baseSettings = loaded.settings;
+    // Import all named profiles and keep other Hubs in this session.
+    for (const [id, value] of loaded.hubs) profiles.set(id, value);
+    renderHubs();
+    selectHub(current);
+    for (const peer of peers.values()) syncPeer(peer);
+    byId('feedback').textContent = '已合入配置。保存后可在重启时恢复。';
 }
 function dispatch(type) {
     const scope = byId('scope').value;
@@ -132,10 +131,11 @@ function dispatch(type) {
         byId('delivery').textContent = !targets.length ? '没有选定的接收端。' : '请输入公告。';
         return;
     }
+    writeLog(targets.join('、') + ' · ' + (type === 'message' ? '发送公告 · ' + text : type));
     const results = delivery;
     for (const hub of targets) {
         const online = [...peers.values()].filter(peer => peer.hub === hub);
-        if (!online.length) results.set(hub, '离线，未发送');
+        if (!online.length) { results.set(hub, '离线，未发送'); writeLog(hub + ' · 离线，未发送'); }
         online.forEach((peer, i) => {
             const label = online.length === 1 ? hub : hub + ' #' + (i + 1);
             results.set(label, '等待回执');
@@ -161,7 +161,7 @@ byId('add-hub').onsubmit = event => {
 byId('scope').onchange = () => { byId('recipients').hidden = byId('scope').value !== 'selected'; };
 byId('send').onclick = () => dispatch('message');
 for (const button of document.querySelectorAll('[data-command]')) button.onclick = () => dispatch(button.dataset.command);
-let saveHandle;
+
 byId('save-config').onclick = async event => {
     const button = event.currentTarget;
     button.disabled = true;
@@ -169,27 +169,14 @@ byId('save-config').onclick = async event => {
         readPanel();
         const data = { version: 2, settings: baseSettings, hubs: Object.fromEntries(profiles) };
         const script = configPrefix + JSON.stringify(data, null, 2) + ';\n';
-        if (typeof window.showSaveFilePicker === 'function') {
-            try {
-                saveHandle ??= await window.showSaveFilePicker({ suggestedName: 'config.js' });
-                const stream = await saveHandle.createWritable();
-                await stream.write(script);
-                await stream.close();
-                byId('feedback').textContent = '配置已写入 ' + saveHandle.name + '。';
-                return;
-            } catch (error) {
-                if (error.name === 'AbortError') return;
-                saveHandle = undefined;
-            }
-        }
-        downloadScript('config.js', script);
-        byId('feedback').textContent = '已请求下载，请用导出的 config.js 覆盖项目根目录中的同名文件。';
-    } catch (error) { byId('feedback').textContent = error.message; }
+        byId('feedback').textContent = await saveScript('config.js', script);
+    } catch (error) { byId('feedback').textContent = error.message; writeLog(error.message); }
     finally { button.disabled = false; }
 };
 renderHubs();
 selectHub(current);
 byId('feedback').textContent = configNotice;
+writeLog(transmit ? '广播频道已打开，等待显示端。' : '当前环境无法打开广播频道。');
 if (transmit) {
     function discover() {
         for (const peer of peers.values()) {
