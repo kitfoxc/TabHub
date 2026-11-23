@@ -43,6 +43,35 @@ const sections = {
     }
 };
 const fields = Object.assign({}, ...Object.values(sections));
+const settingHelp = {
+    draw: '加权随机会降低刚抽中的公告再次出现的概率。均匀随机让可抽取的公告机会相同。',
+    variables: '开启后，将公告里的时间占位符替换为显示时的本地日期和时间。',
+    weightStart: '建立公告池时给每条公告分配的初始权重。仅用于加权随机。',
+    weightStep: '每次加权抽取增加各条公告的权重。数值越大，冷却中的公告恢复得越快。',
+    weightReset: '决定抽中后权重降到多低。比例越大，公告通常越晚重新进入候选池。',
+    live: '状态栏左侧的直播状态。留空隐藏。',
+    topic: '状态栏中的本场主题。留空隐藏。',
+    detail: '状态栏右侧的补充信息。留空隐藏。',
+    limit: '同时保留的标签上限。设为 0 时保持空栏。',
+    minWidth: '空间紧张时每个标签预留的宽度。视口过窄时，单个标签仍可继续收窄。',
+    maxWidth: '压缩模式在空间充足时采用的宽度。完整模式按文字长度展开。',
+    recentCount: '按弹出顺序计算最近几条公告。设为 0 时全部使用更早标签的模式。',
+    recentMode: '决定最近几条公告按文字长度展开，还是遵循压缩宽度。',
+    olderMode: '决定其余公告按文字长度展开，还是遵循压缩宽度。',
+    openTiming: '可等当前公告读完、按固定间隔弹出，或在指定范围内随机等待。',
+    openInterval: '固定模式每隔指定秒数弹出一条。等待读完模式也以此为最短间隔。',
+    randomMin: '随机模式每次弹出前至少等待的秒数。',
+    randomMax: '随机模式每次弹出前至多等待的秒数。',
+    closeInterval: '每隔指定秒数自动关闭一个标签，可以关到空栏。填 0 停用。',
+    openSide: '新公告从标签栏的哪一端出现。',
+    closeSide: '退场动画的方向，也决定自动关闭优先从哪一端选择标签。',
+    speed: '控制标签开合速度。1 为原速，2 为两倍速。',
+    easing: '控制标签开合时的加减速曲线。线性表示全程匀速。',
+    scrollScope: '决定放不下的文字是否滚动，以及哪些可见标签可以滚动。',
+    scrollRepeat: '滚到末尾后停止，或回到开头继续循环。',
+    scrollSpeed: '文字每秒移动的像素数，独立于标签开合速度。',
+    scrollHold: '文字在滚动开始和结束时各停留多久。1000 毫秒等于 1 秒。'
+};
 const defaults = Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, field.value]));
 const storageKey = 'tabhub.settings.v1';
 const messageBackupKey = 'tabhub.messages.backup.v1';
@@ -126,6 +155,7 @@ function buildPanel() {
             const tag = field.choices ? 'select' : 'input';
             const input = document.createElement(tag);
             input.name = key;
+            label.title = settingHelp[key];
             label.append(input);
             grid.append(label);
             if (field.choices) {
