@@ -113,6 +113,7 @@ window.addEventListener('hub-settings-change', event => {
 window.addEventListener('resize', refresh);
 document.addEventListener('visibilitychange', syncPlayback);
 applyPalette(options.colorMode);
+followObsScene();
 switchTheme(options.themeId);
 updateStatus();
 updateControls();

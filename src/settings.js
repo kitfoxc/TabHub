@@ -7,7 +7,7 @@ const sides = { left: '左侧', right: '右侧' };
 const sections = {
     '界面主题': {
         themeId: choice('主题', 'default', themeChoices),
-        colorMode: choice('配色', 'light', { light: '浅色', dark: '深色', system: '跟随系统' })
+        colorMode: choice('配色', 'obs', { obs: '跟随 OBS 场景', light: '浅色', dark: '深色', system: '跟随系统' })
     },
     '公告抽取': {
         draw: choice('抽取方式', 'weighted', { weighted: '加权随机', average: '均匀随机' }),
@@ -48,7 +48,7 @@ const sections = {
 const fields = Object.assign({}, ...Object.values(sections));
 const settingHelp = {
     themeId: '即时更换直播外框和标签动画。已打开的标签会保留。',
-    colorMode: '直播可固定使用深色或浅色。跟随系统使用 OBS 浏览器源报告的配色偏好。',
+    colorMode: '跟随 OBS 场景时，场景名中的 [dark] 或 [light] 决定配色。没有标记时跟随系统。',
     draw: '加权随机会降低刚抽中的公告再次出现的概率。均匀随机让可抽取的公告机会相同。',
     variables: '开启后，将公告里的时间占位符替换为显示时的本地日期和时间。',
     weightStart: '建立公告池时给每条公告分配的初始权重。仅用于加权随机。',
