@@ -1,5 +1,4 @@
 const tabHubConfig = {
-    "version": 2,
-    "settings": {},
-    "hubs": { "main": {} }
+    "version": 1,
+    "settings": {}
 };
