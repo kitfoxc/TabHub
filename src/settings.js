@@ -3,7 +3,6 @@
 // Each setting is declared once. These definitions drive the panel, defaults and validation.
 const numeric = (label, value, min, max, step = 1) => ({ label, value, min, max, step });
 const choice = (label, value, choices) => ({ label, value, choices });
-const modes = { full: '完整显示', compact: '压缩显示' };
 const sides = { left: '左侧', right: '右侧' };
 const sections = {
     '界面主题': {
@@ -24,10 +23,10 @@ const sections = {
     },
     '标签布局': {
         limit: numeric('最多显示标签', 12, 0, 32),
+        fitText: choice('按文本长度自适应', 'on', { on: '开启', off: '关闭' }),
         minWidth: numeric('最小宽度（px）', 62, 62, 1200),
-        maxWidth: numeric('压缩模式最大宽度（px）', 480, 62, 1600),
-        recentCount: numeric('最近标签数量', 3, 0, 32),
-        recentMode: choice('最近标签', 'full', modes), olderMode: choice('更早的标签', 'compact', modes)
+        maxWidth: numeric('固定模式最大宽度（px）', 480, 62, 1600),
+        recentCount: numeric('优先保留宽度的最近标签数', 3, 1, 32)
     },
     '弹出与关闭': {
         openTiming: choice('弹出时机', 'message', { message: '等当前公告读完', fixed: '固定间隔', random: '随机间隔' }),
@@ -59,11 +58,10 @@ const settingHelp = {
     topic: '状态栏中的本场主题。留空隐藏。',
     detail: '状态栏右侧的补充信息。留空隐藏。',
     limit: '同时保留的标签上限。设为 0 时保持空栏。',
-    minWidth: '空间紧张时每个标签预留的宽度。视口过窄时，单个标签仍可继续收窄。',
-    maxWidth: '压缩模式在空间充足时采用的宽度。完整模式按文字长度展开。',
-    recentCount: '按弹出顺序计算最近几条公告。设为 0 时全部使用更早标签的模式。',
-    recentMode: '决定最近几条公告按文字长度展开，还是遵循压缩宽度。',
-    olderMode: '决定其余公告按文字长度展开，还是遵循压缩宽度。',
+    fitText: '开启后按文字长度展开，拥挤时优先压缩旧标签。关闭后所有可见标签使用相同宽度。',
+    minWidth: '可见标签的宽度下限。空间不足时减少可见标签数量。',
+    maxWidth: '固定模式的统一宽度上限。空间不足时所有可见标签等宽缩小。',
+    recentCount: '按打开顺序保留最近几条标签的宽度。旧标签都缩至最小宽度后，这组才按相同百分比缩减各自的文字区域。',
     openTiming: '可等当前公告读完、按固定间隔弹出，或在指定范围内随机等待。',
     openInterval: '固定模式每隔指定秒数弹出一条。等待读完模式也以此为最短间隔。',
     randomMin: '随机模式每次弹出前至少等待的秒数。',
@@ -95,17 +93,28 @@ function validate(value) {
         } else valid = typeof v === 'string';
         if (!valid) throw new Error('请检查「' + field.label + '」。');
     }
-    if (value.minWidth > value.maxWidth) throw new Error('最小宽度须小于或等于最大宽度。');
+    if (value.fitText === 'off' && value.minWidth > value.maxWidth) throw new Error('最小宽度须小于或等于最大宽度。');
     if (value.randomMin > value.randomMax) throw new Error('最短等待须小于或等于最长等待。');
 }
 
 function restoreProfile(saved, allowEmpty = false) {
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) throw new Error('配置应为 JSON 对象。');
     const restored = { ...defaults };
-    if (!(allowEmpty && Object.keys(saved).length === 0) && !Object.keys(fields).some(key => Object.hasOwn(saved, key))) throw new Error('文件中没有 TabHub 设置。');
+    const legacyLayout = ['activeMode', 'otherMode', 'recentMode', 'olderMode'];
+    const recognized = [...Object.keys(fields), ...legacyLayout].some(key => Object.hasOwn(saved, key));
+    if (!recognized && !(allowEmpty && Object.keys(saved).length === 0)) {
+        throw new Error('文件中没有 TabHub 设置。');
+    }
     for (const key of Object.keys(fields)) if (Object.hasOwn(saved, key)) restored[key] = saved[key];
-    if (saved.activeMode && saved.otherMode && !Object.hasOwn(saved, 'recentCount')) {
-        Object.assign(restored, { recentCount: 1, recentMode: saved.activeMode, olderMode: saved.otherMode });
+    if (!Object.hasOwn(saved, 'fitText')) {
+        const recentMode = saved.recentMode ?? saved.activeMode;
+        const olderMode = saved.olderMode ?? saved.otherMode;
+        if (olderMode === 'compact' && (recentMode === 'compact' || saved.recentCount === 0)) {
+            restored.fitText = 'off';
+        }
+        if (saved.recentCount === 0 || (saved.activeMode && !Object.hasOwn(saved, 'recentCount'))) {
+            restored.recentCount = 1;
+        }
     }
     if (!Object.hasOwn(themeChoices, restored.themeId)) restored.themeId = 'default';
     validate(restored);
@@ -226,6 +235,9 @@ function buildPanel() {
 function updatePanel() {
     for (const group of form.querySelectorAll('fieldset')) group.hidden = group.dataset.section !== sectionSelect.value;
     document.getElementById('restore').hidden = sectionSelect.value === '配置迁移';
+    const adaptive = options.fitText === 'on';
+    form.elements.maxWidth.parentElement.hidden = adaptive;
+    form.elements.recentCount.parentElement.hidden = !adaptive;
     const random = options.openTiming === 'random';
     for (const key of ['randomMin', 'randomMax']) form.elements[key].parentElement.hidden = !random;
     form.elements.openInterval.parentElement.hidden = random;
@@ -239,9 +251,18 @@ buildPanel();
 form.onsubmit = e => e.preventDefault();
 function readPanel() {
     const value = { ...options };
+    if (sectionSelect.value === '标签布局') {
+        value.fitText = form.elements.fitText.value;
+        if (options.fitText === 'on' && value.fitText === 'off') {
+            const maxWidth = form.elements.maxWidth;
+            maxWidth.value = Math.max(options.maxWidth, options.minWidth);
+        }
+    }
     for (const key of Object.keys(sections[sectionSelect.value] ?? {})) {
         const field = form.elements[key];
-        if (field.parentElement.hidden) continue;
+        const visible = key === 'maxWidth' ? value.fitText === 'off'
+            : key === 'recentCount' ? value.fitText === 'on' : !field.parentElement.hidden;
+        if (!visible) continue;
         if (!field.checkValidity()) throw new Error('请检查「' + fields[key].label + '」的取值范围。');
         value[key] = field.type === 'number' ? field.valueAsNumber : field.value;
     }

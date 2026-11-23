@@ -1,5 +1,40 @@
 'use strict';
 
+function allocateTabWidths(textWidths, insets, capacity, { fitText, minWidth, maxWidth, recentCount }) {
+    const count = textWidths.length;
+    if (!count) return [];
+    if (fitText === 'off') return Array(count).fill(Math.min(maxWidth, capacity / count));
+
+    const widths = textWidths.map(width => Math.max(minWidth, insets + width));
+    let excess = widths.reduce((sum, width) => sum + width, 0) - capacity;
+    const recentStart = Math.max(0, count - recentCount);
+    for (let index = 0; index < recentStart && excess > 0; index++) {
+        const reduction = Math.min(excess, widths[index] - minWidth);
+        widths[index] -= reduction;
+        excess -= reduction;
+    }
+    if (excess <= 0) return widths;
+
+    const recent = textWidths.slice(recentStart);
+    const recentBudget = capacity - recentStart * minWidth;
+    const sharedWidth = recentBudget / recent.length;
+    if (sharedWidth <= insets) {
+        return widths.slice(0, recentStart).concat(recent.map(() => sharedWidth));
+    }
+
+    // Apply one percentage to the text area, after reserving the theme insets.
+    let budget = recentBudget - insets * recent.length;
+    const minimumText = Math.max(0, minWidth - insets);
+    let total = recent.reduce((sum, width) => sum + width, 0);
+    for (const width of recent.slice().sort((a, b) => a - b)) {
+        if (width * budget >= minimumText * total) break;
+        budget -= minimumText;
+        total -= width;
+    }
+    const scale = total > 0 ? budget / total : 0;
+    return widths.slice(0, recentStart).concat(recent.map(width => Math.max(minWidth, insets + width * scale)));
+}
+
 function createTabStrip(onChange) {
     const tabs = document.getElementById('tabs');
     const rail = document.getElementById('rail');
@@ -48,17 +83,6 @@ function createTabStrip(onChange) {
         setTimeout(() => tab.remove(), duration + 50);
     }
 
-    // Share a width budget without taking unused space away from short titles.
-    function fitGroup(group, available) {
-        let assigned = 0;
-        const ordered = group.slice().sort((a, b) => a.ideal - b.ideal);
-        for (const [i, item] of ordered.entries()) {
-            item.width = Math.min(item.ideal, (available - assigned) / (ordered.length - i));
-            assigned += item.width;
-        }
-        return assigned;
-    }
-
     function scrollLabel(label, distance, transition) {
         const travel = distance / options.scrollSpeed * 1000;
         const cycle = travel + options.scrollHold * 2;
@@ -97,14 +121,13 @@ function createTabStrip(onChange) {
         const railStyle = getComputedStyle(rail);
         const capacity = Math.max(0, rail.clientWidth - parseFloat(railStyle.paddingRight)
             - parseFloat(railStyle.columnGap) - document.getElementById('new-tab').offsetWidth);
-        const minimum = Math.min(capacity, options.minWidth);
         const open = [...announcements];
-        const recent = new Set(open.slice(Math.max(0, open.length - options.recentCount)));
-        const count = Math.max(1, Math.min(options.limit, Math.floor(capacity / options.minWidth)));
-        const visible = open.slice(-count);
+        const count = Math.min(options.limit, Math.floor(capacity / options.minWidth));
+        const visible = count ? open.slice(-count) : [];
         if (active && visible.length && !visible.includes(active)) visible[0] = active;
+        const visibleTabs = new Set(visible);
         for (const tab of open) {
-            tab.inert = !visible.includes(tab);
+            tab.inert = !visibleTabs.has(tab);
             tab.classList.toggle('shelved', tab.inert);
             if (tab.inert) tab.style.width = '0px';
             tab.classList.toggle('active', tab === active);
@@ -115,23 +138,18 @@ function createTabStrip(onChange) {
         const narrowWidth = metric('--narrow-width');
         const iconOnlyWidth = metric('--icon-only-width');
         const items = visible.map(tab => {
-            const compact = (recent.has(tab) ? options.recentMode : options.olderMode) === 'compact';
             const label = tab.querySelector('.label');
             const textWidth = Math.ceil(label.getBoundingClientRect().width / scale);
-            const ideal = compact ? options.maxWidth : Math.max(minimum, textWidth + titleInset + closeInset);
-            return { tab, label, compact, textWidth, ideal };
+            return { tab, label, textWidth };
         });
-        const compact = items.filter(item => item.compact);
-        const full = items.filter(item => !item.compact);
-        const used = fitGroup(full, capacity - minimum * compact.length);
-        fitGroup(compact, capacity - used);
+        const widths = allocateTabWidths(items.map(item => item.textWidth), titleInset + closeInset, capacity, options);
 
         let remaining = 0;
-        for (const { tab, label, width, textWidth, compact: isCompact } of items) {
+        for (const [index, { tab, label, textWidth }] of items.entries()) {
+            const width = widths[index];
             const current = tab === active;
             const iconOnly = width < iconOnlyWidth;
             const hasClose = current || width >= narrowWidth;
-            tab.classList.toggle('compact', isCompact);
             tab.classList.toggle('narrow', width < narrowWidth);
             tab.classList.toggle('icon-only', iconOnly);
             tab.style.width = width + 'px';
