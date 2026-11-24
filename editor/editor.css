@@ -264,6 +264,16 @@ h3 { margin: 0; font-size: 12px; font-weight: 650; }
     padding: 1px 2px 4px 0;
     scrollbar-width: thin;
 }
+.message-list:empty::after {
+    content: '暂无消息 · 点击上方 ＋ 新增';
+    display: block;
+    padding: 17px 8px;
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 10px;
+    text-align: center;
+}
 .row {
     display: flex;
     align-items: center;
