@@ -22,6 +22,8 @@ with sync_playwright() as pw, TemporaryDirectory() as tmp:
     page.locator("#files").set_input_files(ROOT / "messages.js")
     page.wait_for_function("doc.rows.length === 8")
     page.locator("#text").fill("欢迎来到直播间")
+    page.locator("[data-quick-format=italic]").click()
+    assert page.evaluate("selected().value[0].style.italic")
     page.locator("#text").evaluate("e=>e.setSelectionRange(0,2)")
     page.locator("#applyFormat").click()
     assert page.evaluate("selected().value[0].style.bold && selected().value[0].text==='欢迎'")

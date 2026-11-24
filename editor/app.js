@@ -94,6 +94,7 @@ function filtered() {
 }
 function list() {
     const rows = filtered();
+    const order = new Map(doc.rows.map((row, index) => [row.id, index + 1]));
     el('count').textContent = rows.length;
     el('checkAll').checked = !!rows.length && rows.every((r) => doc.checked.has(r.id));
     const nodes = rows.slice(0, pageSize).map((row) => {
@@ -108,11 +109,24 @@ function list() {
             else doc.checked.delete(row.id);
             list();
         };
-        const title = titleOf(row).slice(0, 120) || '空消息';
-        line.append(
-            check,
-            button((row.error ? '⚠ ' : '') + title, () => setActive(row.id))
-        );
+        const text = titleOf(row).trim();
+        const title = text.split(/\r?\n/, 1)[0].slice(0, 34) || '空消息';
+        const preview = text.length > title.length
+            ? text.slice(title.length).replace(/^\s+/, '').slice(0, 58) || '包含格式化文本'
+            : '单条消息 · ' + text.length + ' 个字符';
+        const content = button('', () => setActive(row.id));
+        content.className = 'row-content';
+        const meta = document.createElement('span');
+        meta.className = 'row-meta';
+        meta.textContent = '消息 ' + String(order.get(row.id)).padStart(2, '0');
+        const heading = document.createElement('span');
+        heading.className = 'row-title';
+        heading.textContent = (row.error ? '⚠ ' : '') + title;
+        const excerpt = document.createElement('span');
+        excerpt.className = 'row-preview';
+        excerpt.textContent = preview;
+        content.append(meta, heading, excerpt);
+        line.append(check, content);
         line.draggable = true;
         line.ondragstart = (e) => {
             dragged = row.id;
