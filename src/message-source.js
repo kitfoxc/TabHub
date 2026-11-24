@@ -37,20 +37,38 @@ function passesCondition(rule, date) {
     }
 }
 
+function packAvailable(entry, date) {
+    const rules = Array.isArray(entry.conditions) ? entry.conditions : [entry.conditions];
+    return entry.conditions == null || (rules.length > 0 && rules.every(rule => passesCondition(rule, date)));
+}
+
 function messagePool(entries, date) {
     const pool = [];
     for (const entry of entries) {
         if (entry?.type !== 'pack') { pool.push(entry); continue; }
-        const rules = Array.isArray(entry.conditions) ? entry.conditions : [entry.conditions];
-        if (entry.conditions == null || (rules.length && rules.every(rule => passesCondition(rule, date)))) {
+        if (packAvailable(entry, date)) {
             pool.push(...messagePool(entry.content, date));
         }
     }
     return pool;
 }
 
+function validEntry(entry, depth = 0) {
+    if (depth > 32) return false;
+    if (typeof entry === 'string') return true;
+    const segment = part => typeof part === 'string' || typeof part?.text === 'string';
+    if (Array.isArray(entry)) return entry.every(segment);
+    if (entry?.type === 'queue' || entry?.type === 'pack') {
+        return Array.isArray(entry.content) && entry.content.every(part => validEntry(part, depth + 1));
+    }
+    return segment(entry);
+}
+
 class MessageSource {
-    constructor() { this.reset(); }
+    constructor(entries) {
+        this.entries = Array.isArray(entries) ? entries.filter(entry => validEntry(entry)) : [];
+        this.reset();
+    }
     reset() {
         this.day = null;
         this.queue = [];
@@ -59,7 +77,7 @@ class MessageSource {
     next(settings, date = new Date()) {
         if (this.day !== date.toDateString()) {
             this.day = date.toDateString();
-            this.pool = messagePool(settings.messages, date);
+            this.pool = messagePool(this.entries, date);
             this.weights = this.pool.map(() => settings.weightStart);
             this.last = -1;
         }

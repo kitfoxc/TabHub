@@ -4,13 +4,18 @@ function createTabStrip(onChange) {
     const tabs = document.getElementById('tabs');
     const rail = document.getElementById('rail');
     const chromeBar = document.querySelector('.chrome');
-    const template = document.getElementById('tab-template');
+    const defaultTab = document.getElementById('tab-template').content.firstElementChild;
+    let blueprint = defaultTab;
+    let strategy = tabLayouts.horizontal;
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     let active;
+    let duration = 0;
     const textAnimations = new Map();
     // Opening order is independent of both visual placement and user selection.
     const announcements = new Set();
     let previous;
+    const segmenter = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter() : null;
+    const characterCounts = new WeakMap();
 
     function closeMotion(tab) {
         if (!announcements.delete(tab)) return;
@@ -25,37 +30,26 @@ function createTabStrip(onChange) {
             const i = visible.indexOf(tab);
             active = visible[i + 1] || visible[i - 1] || [...announcements].at(-1);
         }
-        if (reducedMotion.matches || !tab.offsetWidth) {
+        if (!duration || reducedMotion.matches || !tab[strategy.offset]) {
             tab.remove();
             return;
         }
         tab.dataset.closeSide = options.closeSide;
         const painted = getComputedStyle(tab);
-        tab.style.setProperty('--closing-width', painted.width);
+        tab.style.setProperty('--closing-' + strategy.dimension, painted[strategy.dimension]);
         tab.style.setProperty('--closing-opacity', painted.opacity);
         tab.style.setProperty('--closing-transform', painted.transform);
         tab.classList.add('leaving');
         tab.classList.toggle('was-active', tab.classList.contains('active'));
         tab.classList.remove('active');
         tab.inert = true;
-        tab.style.width = '0px';
+        tab.style[strategy.dimension] = '0px';
         // Includes hidden tabs and reduced-motion profiles that emit no transitionend.
         const finish = event => {
-            if (event.target === tab && event.propertyName === 'width') tab.remove();
+            if (event.target === tab && event.propertyName === strategy.dimension) tab.remove();
         };
         tab.addEventListener('transitionend', finish);
-        setTimeout(() => tab.remove(), 200 / options.speed + 50);
-    }
-
-    // Share a width budget without taking unused space away from short titles.
-    function fitGroup(group, available) {
-        let assigned = 0;
-        const ordered = group.slice().sort((a, b) => a.ideal - b.ideal);
-        for (const [i, item] of ordered.entries()) {
-            item.width = Math.min(item.ideal, (available - assigned) / (ordered.length - i));
-            assigned += item.width;
-        }
-        return assigned;
+        setTimeout(() => tab.remove(), duration + 50);
     }
 
     function scrollLabel(label, distance, transition) {
@@ -63,9 +57,7 @@ function createTabStrip(onChange) {
         const cycle = travel + options.scrollHold * 2;
         const signature = [distance, options.scrollSpeed, options.scrollHold, options.scrollRepeat].join('/');
         const existing = textAnimations.get(label);
-        if (existing?.signature === signature) {
-            return Math.max(0, existing.firstPass - existing.animation.currentTime);
-        }
+        if (existing?.signature === signature) return;
         existing?.animation.cancel();
         const end = 'translateX(-' + distance + 'px)';
         const frames = [
@@ -78,69 +70,64 @@ function createTabStrip(onChange) {
             delay: transition, duration: cycle,
             iterations: options.scrollRepeat === 'loop' ? Infinity : 1, fill: 'both'
         });
-        const firstPass = transition + cycle;
-        textAnimations.set(label, { animation, signature, firstPass });
-        return firstPass;
+        textAnimations.set(label, { animation, signature });
     }
 
     function layout() {
         const scrolling = new Set();
-        const scale = Math.max(.5, Math.min(1, innerWidth / 1920));
-        chromeBar.style.zoom = scale;
-        const duration = reducedMotion.matches ? 0 : 180 / options.speed;
+        const theme = getComputedStyle(chromeBar);
+        const metric = name => Number(theme.getPropertyValue(name));
+        const scale = Math.max(.5, Math.min(metric('--max-scale'), innerWidth / metric('--design-width')));
+        chromeBar.style.setProperty('--tab-scale', scale);
+        duration = reducedMotion.matches ? 0 : metric('--motion-ms') / options.speed;
         chromeBar.style.setProperty('--motion', duration + 'ms');
-        chromeBar.style.setProperty('--curve', options.easing === 'browser' ? 'cubic-bezier(.08,.75,.12,1)' : options.easing);
+        chromeBar.style.setProperty('--curve', options.easing === 'browser' ? 'cubic-bezier(.08,.75,.12,1)' : options.easing === 'theme' ? 'var(--theme-curve)' : options.easing);
 
         const railStyle = getComputedStyle(rail);
-        const capacity = Math.max(0, rail.clientWidth - parseFloat(railStyle.paddingRight)
-            - parseFloat(railStyle.columnGap) - document.getElementById('new-tab').offsetWidth);
-        const minimum = Math.min(capacity, options.minWidth);
+        const available = Math.max(0, strategy.capacity(rail, document.getElementById('new-tab'), railStyle));
+        const minimum = strategy.minimum(options, metric);
+        const measured = callThemeHook('measure', { available, minimum, scale, limit: options.limit });
+        const capacity = Number.isFinite(measured) && measured >= 0 ? measured : available;
         const open = [...announcements];
-        const recent = new Set(open.slice(Math.max(0, open.length - options.recentCount)));
-        const count = Math.max(1, Math.min(options.limit, Math.floor(capacity / options.minWidth)));
-        const visible = open.slice(-count);
+        const count = Math.min(options.limit, Math.floor(capacity / minimum));
+        const visible = count ? open.slice(-count) : [];
         if (active && visible.length && !visible.includes(active)) visible[0] = active;
+        const visibleTabs = new Set(visible);
         for (const tab of open) {
-            tab.inert = !visible.includes(tab);
+            tab.inert = !visibleTabs.has(tab);
             tab.classList.toggle('shelved', tab.inert);
-            if (tab.inert) tab.style.width = '0px';
+            if (tab.inert) tab.style[strategy.dimension] = '0px';
             tab.classList.toggle('active', tab === active);
         }
 
-        // The title needs 68px for its icon, gap and padding, plus 50px for the close button.
-        const titleInset = 68;
-        const closeInset = 50;
+        const titleInset = metric('--title-inset');
+        const closeInset = metric('--close-inset');
+        const narrowWidth = metric('--narrow-width');
+        const iconOnlyWidth = metric('--icon-only-width');
         const items = visible.map(tab => {
-            const compact = (recent.has(tab) ? options.recentMode : options.olderMode) === 'compact';
             const label = tab.querySelector('.label');
             const textWidth = Math.ceil(label.getBoundingClientRect().width / scale);
-            const ideal = compact ? options.maxWidth : Math.max(minimum, textWidth + titleInset + closeInset);
-            return { tab, label, compact, textWidth, ideal };
+            return { tab, label, textWidth };
         });
-        const compact = items.filter(item => item.compact);
-        const full = items.filter(item => !item.compact);
-        const used = fitGroup(full, capacity - minimum * compact.length);
-        fitGroup(compact, capacity - used);
+        const sizes = strategy.sizes(items, { capacity, options, insets: titleInset + closeInset, minimum });
 
-        let remaining = 0;
-        for (const { tab, label, width, textWidth, compact: isCompact } of items) {
+        for (const [index, { tab, label, textWidth }] of items.entries()) {
+            const size = sizes[index];
             const current = tab === active;
-            const iconOnly = width < 98;
-            const hasClose = current || width >= 165;
-            tab.classList.toggle('compact', isCompact);
-            tab.classList.toggle('narrow', width < 165);
+            tab.style[strategy.dimension] = size + 'px';
+            const { narrow, iconOnly, width: clipWidth } = strategy.labelArea({
+                size, label, current, titleInset, closeInset, narrowWidth, iconOnlyWidth
+            });
+            tab.classList.toggle('narrow', narrow);
             tab.classList.toggle('icon-only', iconOnly);
-            tab.style.width = width + 'px';
             tab.querySelector('.select').setAttribute('aria-pressed', String(current));
 
-            const clipWidth = Math.max(0, width - titleInset - (hasClose ? closeInset : 0));
             const distance = Math.max(0, textWidth - clipWidth);
             tab.classList.toggle('overflowing', distance > 0);
             const allowScroll = options.scrollScope === 'all' || (current && options.scrollScope === 'active');
             if (allowScroll && clipWidth > 0 && distance > 0 && !iconOnly && !document.hidden && !reducedMotion.matches) {
                 scrolling.add(label);
-                const readTime = scrollLabel(label, distance, duration);
-                if (current) remaining = readTime;
+                scrollLabel(label, distance, duration);
             }
         }
         for (const [label, state] of textAnimations) {
@@ -148,7 +135,7 @@ function createTabStrip(onChange) {
             state.animation.cancel();
             textAnimations.delete(label);
         }
-        return remaining;
+        callThemeHook('layout', { visible, active, capacity, scale });
     }
 
     function closeCandidates() {
@@ -164,19 +151,23 @@ function createTabStrip(onChange) {
     }
     function appendTab(content, manual) {
         const html = content.innerHTML;
-        if (!options.limit || !content.textContent || (!manual && html === previous && active)) return;
+        if (!options.limit || !content.textContent || (!manual && html === previous && active)) return false;
         previous = html;
-        const tab = template.content.firstElementChild.cloneNode(true);
+        const tab = blueprint.cloneNode(true);
         const label = tab.querySelector('.label');
         label.append(...content.childNodes);
-        tab.querySelector('.select').title = label.textContent;
+        const text = label.textContent;
+        tab.querySelector('.select').title = text;
+        const characters = segmenter ? Array.from(segmenter.segment(text), part => part.segment) : Array.from(text);
+        characterCounts.set(tab, characters.filter(character => /\S/u.test(character)).length);
         announcements.add(tab);
         tab.dataset.openSide = options.openSide;
         if (options.openSide === 'left') tabs.prepend(tab);
         else tabs.append(tab);
-        tab.getBoundingClientRect(); // Establish width zero before opening.
+        tab.getBoundingClientRect(); // Establish the collapsed size before opening.
         active = tab;
         trimHistory();
+        return true;
     }
 
     tabs.addEventListener('click', event => {
@@ -184,15 +175,54 @@ function createTabStrip(onChange) {
         if (!tab || tab.inert) return;
         if (event.target.closest('.close')) {
             closeMotion(tab);
-        } else {
+        } else if (blueprint === defaultTab || event.target.closest('.select')) {
             active = tab;
+        } else {
+            return;
         }
         onChange();
     });
     reducedMotion.addEventListener('change', onChange);
     return {
+        get activeCharacterCount() { return characterCounts.get(active) ?? 0; },
         get size() { return announcements.size; },
         append: appendTab, layout, trimHistory,
+        setView(direction, customTab) {
+            const next = customTab ?? defaultTab;
+            const nextStrategy = tabLayouts[direction];
+            for (const tab of announcements) {
+                if (nextStrategy !== strategy) {
+                    tab.style.removeProperty(strategy.dimension);
+                    tab.classList.remove('narrow', 'icon-only', 'overflowing');
+                }
+                if (next === blueprint) continue;
+                const body = next.cloneNode(true);
+                const label = tab.querySelector('.label');
+                textAnimations.get(label)?.animation.cancel();
+                textAnimations.delete(label);
+                body.querySelector('.label').append(...label.childNodes);
+                body.querySelector('.select').title = body.querySelector('.label').textContent;
+                tab.replaceChildren(...body.childNodes);
+            }
+            blueprint = next;
+            strategy = nextStrategy;
+            rail.dataset.layout = direction;
+            tabs.dataset.layout = direction;
+        },
+        finishThemeMotion() {
+            for (const tab of tabs.children) {
+                if (announcements.has(tab)) delete tab.dataset.openSide;
+            }
+            tabs.querySelectorAll('.leaving').forEach(tab => tab.remove());
+        },
+        clear() {
+            for (const { animation } of textAnimations.values()) animation.cancel();
+            textAnimations.clear();
+            announcements.clear();
+            active = undefined;
+            previous = undefined;
+            tabs.replaceChildren();
+        },
         closeNext() {
             const victim = closeCandidates()[0] || active;
             if (victim) closeMotion(victim);

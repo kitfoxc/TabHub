@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>TabHub 控制台</title>
+        <link rel="stylesheet" href="ui/workbench.css" />
+        <link rel="stylesheet" href="console/workspace.css" />
+        <script defer src="config.js"></script>
+        <script defer src="src/settings.js"></script>
+        <script defer src="src/broadcast.js"></script>
+        <script defer src="messages.js"></script>
+        <script defer src="src/message-source.js"></script>
+        <script defer src="src/console-tools.js"></script>
+        <script defer src="src/console.js"></script>
+        <script defer src="src/console-settings.js"></script>
+        <script defer src="console/workspace.js"></script>
+    </head>
+    <body>
+        <header>
+            <h1>
+                TabHub
+                <span>广播控制台</span>
+            </h1>
+            <a href="messages-editor.html" target="_blank" rel="noopener">Messages 编辑器 ↗</a>
+            <select id="scheme" aria-label="控制台外观">
+                <option value="auto">跟随系统</option>
+                <option value="light">浅色</option>
+                <option value="dark">深色</option>
+            </select>
+        </header>
+        <nav class="pages" aria-label="工作区">
+            <button data-page="cast" aria-pressed="true">广播</button>
+            <button data-page="preferences" aria-pressed="false">设置</button>
+            <button data-page="logs" aria-pressed="false">日志</button>
+            <label class="compact-picker">
+                当前 Hub
+                <select id="hub"></select>
+            </label>
+        </nav>
+        <main>
+            <aside id="manager">
+                <div class="heading">
+                    <h2>Hub 管理</h2>
+                    <button class="dismiss" data-close="manager">收起</button>
+                </div>
+                <div id="hub-list"></div>
+                <details id="hub-tools">
+                    <summary>管理显示端</summary>
+                    <form id="add-hub">
+                        <label>
+                            新 Hub ID
+                            <input id="hub-id" required pattern="[A-Za-z0-9_\-]{1,48}" maxlength="48" />
+                        </label>
+                        <button>添加</button>
+                    </form>
+                    <label>
+                        当前 Hub 浏览器源 URL
+                        <input id="source-url" readonly />
+                    </label>
+                    <button id="copy-url">复制 URL</button>
+                    <button id="remove-hub">移除此 Hub</button>
+                </details>
+            </aside>
+            <div class="center">
+                <section id="cast">
+                    <div class="composer">
+                        <div class="heading">
+                            <h2>实时公告</h2>
+                            <select id="scope" aria-label="发送目标">
+                                <option value="current">当前 Hub</option>
+                                <option value="selected">指定多个 Hub</option>
+                                <option value="all">全部在线 Hub</option>
+                            </select>
+                        </div>
+                        <div id="recipients" hidden></div>
+                        <textarea
+                            id="message"
+                            aria-label="实时公告内容"
+                            rows="3"
+                            placeholder="输入实时公告内容…"
+                        ></textarea>
+                    </div>
+                    <div class="dispatch">
+                        <div class="target-line">
+                            发送及轮播目标
+                            <strong id="targets"></strong>
+                        </div>
+                        <div class="actions">
+                            <button class="primary" id="send">发送公告</button>
+                            <button data-command="toggle">暂停／启动</button>
+                            <button data-command="next">下一条</button>
+                            <button data-command="clear">清空公告</button>
+                        </div>
+                    </div>
+                    <output id="delivery" role="status"></output>
+                    <details id="library">
+                        <summary>
+                            轮播公告
+                            <small id="entry-count"></small>
+                        </summary>
+                        <input
+                            type="search"
+                            id="search"
+                            aria-label="搜索轮播公告"
+                            placeholder="搜索公告内容或类型"
+                        />
+                        <ol id="entries"></ol>
+                        <p id="empty-library" hidden></p>
+                    </details>
+                </section>
+                <section id="preferences" hidden>
+                    <div class="heading">
+                        <h2>
+                            Hub 设置
+                            <small id="settings-hub"></small>
+                        </h2>
+                        <button id="restore">重置本组</button>
+                    </div>
+                    <div class="settings-layout">
+                        <nav id="groups" aria-label="设置分类"></nav>
+                        <div>
+                            <select id="section" aria-label="设置分类"></select>
+                            <form id="options"></form>
+                            <div id="config-files" hidden>
+                                <h3>全局配置文件</h3>
+                                <p>导入或保存默认设置和全部 Hub 的配置。</p>
+                                <div class="actions">
+                                    <button id="import-config">导入配置</button>
+                                    <button id="save-config" class="primary">保存全部配置</button>
+                                </div>
+                                <input id="config-file" type="file" accept=".js,.json" hidden />
+                            </div>
+                            <output id="applied"></output>
+                        </div>
+                    </div>
+                </section>
+                <section id="logs" hidden>
+                    <section id="live" aria-label="Hub 状态快照">
+                        <div class="heading">
+                            <h2>当前播出</h2>
+                            <small id="live-hub"></small>
+                        </div>
+                        <div id="instances"></div>
+                    </section>
+                    <div class="heading">
+                        <h2>会话日志</h2>
+                        <button id="clear-log">清空日志</button>
+                    </div>
+                    <ol id="log-list"></ol>
+                </section>
+            </div>
+        </main>
+        <footer>
+            <button id="left-toggle" aria-controls="manager">Hub 列表</button>
+            <output id="feedback" role="status"></output>
+            <span id="connection"></span>
+        </footer>
+    </body>
+</html>

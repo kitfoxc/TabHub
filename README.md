@@ -1,70 +1,340 @@
 # TabHub
 
-用于 OBS 的透明直播外框。顶部以浏览器标签的形式轮播公告，底部显示直播状态、主题和补充信息。
+一款面向 OBS Studio 的轻量化直播公告与界面装饰插件。
 
-## 在 OBS 中使用
+本项目的灵感来源于 [Echo-MoJi](https://github.com/sheep-realms/Echo-MoJi) 和 [Echo-Live](https://github.com/sheep-realms/Echo-Live)，在原有消息展示机制的基础上，整合了多主题渲染、实时广播及多 Hub 管理功能，为直播场景提供更加灵活的公告展示方式。
 
-下载并解压仓库，在场景里添加「浏览器」源，勾选「本地文件」并选择 `hub.html`。将源放在直播内容上方，宽高设为画布尺寸。1920×1080 显示整个外框，1920×80 只显示顶栏。所有脚本和样式随项目提供，可离线运行。
+TabHub 采用原生 HTML、CSS 和 JavaScript 开发，无需编译或部署专用后端服务，可直接通过 OBS 浏览器源和浏览器停靠窗口使用。
 
-右键浏览器源选择「交互」，点击左上角下拉按钮打开设置。叠页按钮暂停或恢复轮播，加号打开下一条公告。点标签标题切换活动标签，点叉号关闭。右侧窗口图标仅用于展示。
+## 功能特性
 
-## 设置入口
+### 公告与轮播
 
-| 分组 | 用途 |
-| --- | --- |
-| 公告内容 | 普通文案每行一条，点击「应用公告列表」后生效。支持均匀随机、加权随机、连续队列、条件包、时间变量和富文本 |
-| 状态栏 | 修改直播状态、本场主题和右侧信息，留空隐藏对应字段 |
-| 标签布局 | 数量、宽度、最近几条和更早标签的显示方式。将数量上限设为 0 可保持空栏 |
-| 弹出与关闭 | 选择左右方向、阅读完毕后轮播、固定或随机等待及独立关闭间隔。关闭间隔为 0 时停用定时关闭 |
-| 动画与滚动 | 标签开合速度与缓动，溢出文字的范围、速度、停留时间和循环方式 |
-| 配置迁移 | 导出、导入一份包含公告、底栏和显示设置的 JSON 文件 |
+- 浏览器标签页式公告展示。
+- 自动轮播、手动插播、标签选择与关闭。
+- 支持加权随机、均匀随机、顺序队列及条件公告包。
+- 支持富文本消息与动态时间变量。
+- 支持固定间隔、随机间隔及按文本长度计算轮播间隔。
+- 支持标签自动关闭与文本溢出滚动。
 
-完整模式按文字宽度展开；压缩模式优先为完整标签让出空间。最小宽度默认 62 px。按打开时间划分最近标签，点击历史标签不会改变分组。达到数量上限时优先从所选关闭侧移除非活动标签。弹出与关闭同时到期时只进行一次布局更新。暂停或隐藏页面会冻结两个倒计时。
+### 主题与外观
 
-### 公告示例
+- 内置 Default、Photoshop 和 Cards 三套主题。
+- 支持横向标签栏与纵向卡片布局。
+- 支持标签宽度随文本长度自适应。
+- 支持独立主题样式、自定义标签模板及可选主题脚本。
+- 支持自定义动画速度、缓动曲线及文字滚动效果。
+- 支持浅色、深色、跟随系统及跟随 OBS 场景配色。
 
-下列每行都是一条可直接粘贴到「公告列表」的内容。队列被抽中后按顺序逐条展示。条件包按本地日期筛选，随机条件在消息池重建时计算。
+### 广播控制台
+
+- 统一管理多个 Hub 及其在线显示实例。
+- 支持单目标、多目标及全局广播。
+- 支持即时消息发送与指定轮播公告插播。
+- 远程控制轮播暂停、恢复、下一条及清空公告。
+- 实时调整各 Hub 的运行设置。
+- 查看广播日志及显示实例执行回执。
+- 支持配置导入与导出。
+
+### Messages 编辑器
+
+- 独立的可视化公告编辑器。
+- 支持 `messages.js` 的导入、编辑与保存。
+- 支持公告列表管理、富文本编辑及源码编辑。
+- 提供主题效果预览及富文本格式 Wiki。
+- 支持撤销与本地草稿恢复。
+
+## 系统组成
+
+TabHub 由三个独立的网页入口组成：
+
+| 入口 | 文件 | 用途 |
+|---|---|---|
+| Hub | `hub.html` | 公告展示与直播界面渲染 |
+| Console | `console.html` | 实时广播、运行控制与配置管理 |
+| Messages Editor | `messages-editor.html` | 公告内容制作与维护 |
+
+Hub 作为 OBS 浏览器源运行，Console 推荐作为 OBS 浏览器停靠窗口使用，Messages Editor 可在普通浏览器中独立使用。
+
+## 快速开始
+
+### 1. 获取项目
+
+下载并解压项目，或通过 Git 克隆仓库：
+
+```bash
+git clone https://github.com/kitfoxc/tabhub.git
+```
+
+请保持项目目录结构完整。
+
+### 2. 添加控制台
+
+在 OBS Studio 中打开：
+
+**停靠窗口 → 自定义浏览器停靠窗口**
+
+添加 `console.html` 对应的文件 URL，例如：
 
 ```text
-欢迎来到直播间
-现在是 {{{time:hh}}}:{{{time:mm}}}
-[{"text":"提醒 ","style":{"bold":true}},{"text":"报名即将截止","style":{"color":"#c24836"}}]
-{"type":"queue","content":["第一轮即将开始","请提前准备"]}
-{"type":"pack","conditions":[{"condition":"weekday_check","weekday":6}],"content":["周六特别场"]}
+file:///D:/TabHub/console.html
 ```
 
-支持的条件为 `all_of`、`any_of`、`inverted`、`date_check`、`weekday_check` 和 `random_chance`。以左方括号、左花括号或双引号开头的普通文字可写成 JSON 字符串。
+### 3. 添加 Hub 显示端
 
-### 从旧 Hub 搬迁
+1. 在控制台中选择或配置 Hub。
+2. 复制对应的 OBS 浏览器源 URL。
+3. 在 OBS 场景中添加浏览器源。
+4. 取消勾选「本地文件」，粘贴完整 URL。
+5. 根据主题和直播画面设置浏览器源尺寸。
 
-页面会在当前浏览器存储中查找旧 Hub 的显示设置。移动本地文件或换用另一个 OBS 配置时，浏览器可能分配不同的存储空间。已有 TabHub 配置可直接通过「配置迁移」转移。
+参考尺寸：
 
-要一起带入旧版的自定义公告、底栏和消息抽取设置，可在**原版 `hub.html` 的浏览器开发者控制台**运行以下代码，下载后在新 Hub 的「配置迁移」中导入。请使用保存过设置的浏览器环境；普通浏览器与 OBS 的本地设置可能不同。
+| 使用场景 | 参考尺寸 |
+|---|---|
+| 完整直播外框 | 1920 × 1080 |
+| 横向公告标签栏 | 1920 × 80 |
+| 纵向公告卡片栏 | 360 × 1080 |
+
+### 4. 编辑公告
+
+打开 `messages-editor.html`，导入项目根目录的 `messages.js`。
+
+完成编辑并保存文件后，刷新控制台及相关 Hub 浏览器源。
+
+### 运行环境
+
+TabHub 使用浏览器原生 `BroadcastChannel` 实现控制台与显示端之间的通信。
+
+控制台与 Hub 应运行于同一个 OBS 浏览器环境，并使用一致的 URL 形式。
+
+如果本地文件页面之间无法正常通信，可使用本地静态 HTTP 服务运行项目：
+
+```bash
+python -m http.server 8080 --bind 127.0.0.1
+```
+
+随后通过以下地址访问控制台：
+
+```text
+http://127.0.0.1:8080/console.html
+```
+
+其他页面也应使用相同的协议、主机和端口。
+
+## 内置主题
+
+| 主题 | ID | 布局 | 说明 |
+|---|---|---|---|
+| Default | `default` | 横向 | 浏览器标签页风格 |
+| Photoshop | `photoshop` | 横向 | Photoshop 文档标签栏与状态栏风格 |
+| Cards | `cards` | 纵向 | 纵向公告卡片布局 |
+
+各 Hub 可以独立设置主题、配色、字体、布局及动画效果。
+
+### OBS 场景配色
+
+在 OBS 场景名称中添加对应标记，即可在 OBS 配色模式下自动切换主题深浅色。
+
+| 场景名称示例 | 配色 |
+|---|---|
+| 游戏直播 `[dark]` | 深色 |
+| 桌面展示 `[light]` | 浅色 |
+| 无标记 | 跟随系统 |
+
+场景标记不区分大小写。
+
+使用此功能时，请为浏览器源授予读取 OBS 用户信息的页面权限（READ_USER）。
+
+### 标签布局
+
+横向布局支持两种宽度分配模式：
+
+- **文本自适应：** 根据文本长度分配标签宽度，空间不足时优先压缩较早打开的标签。
+- **固定宽度：** 使用统一的最大宽度限制，空间不足时等宽压缩。
+
+两种模式均受最小宽度及标签数量限制。
+
+纵向布局根据容器高度分配卡片槽位，并允许主题通过独立脚本实现更加灵活的视觉排列。
+
+## 多 Hub 管理
+
+TabHub 支持在同一个 OBS 环境中部署多个 Hub，例如：
+
+- `main`：主直播公告栏。
+- `gaming`：游戏场景公告栏。
+- `break`：休息场景公告栏。
+- `sidebar`：纵向侧边公告栏。
+
+每个 Hub 通过独立的 Hub ID 标识，并拥有独立的运行配置和轮播状态。
+
+同一个 Hub ID 可以对应多个显示实例。控制台可以向当前 Hub、指定多个 Hub 或全部在线 Hub 发送广播。
+
+同一 Hub 的多个显示实例能够接收相同的广播指令，但其本地轮播进度不保证完全同步。
+
+## 公告内容
+
+公告内容定义于项目根目录的 `messages.js`。
+
+普通公告示例：
 
 ```js
-const messageConfig = config.echomoji.message;
-const settings = {
-    ...options, ...hubStatus, messages: db_message,
-    openInterval: options.openTiming === 'message' ? messageConfig.duration / 1000 : options.openInterval,
-    draw: messageConfig.random_method, variables: messageConfig.allow_variable ? 'on' : 'off',
-    weightStart: messageConfig.random_weight_init, weightStep: messageConfig.random_weight_step,
-    weightReset: messageConfig.random_weight_reset_negative_rate
-};
-const url = URL.createObjectURL(new Blob([JSON.stringify({version: 1, settings}, null, 2)], {type: 'application/json'}));
-const link = document.createElement('a');
-link.href = url;
-link.download = 'tabhub.json';
-link.click();
-setTimeout(() => URL.revokeObjectURL(url), 1000);
+const tabHubMessages = [
+    '欢迎来到直播间',
+    '感谢观看',
+    '现在是 {{{time:hh}}}:{{{time:mm}}}'
+];
 ```
 
-## 运行链路
+消息系统支持以下内容：
 
-1. `src/settings.js` 集中定义字段、默认值与校验规则，生成设置面板，读写同一份配置。通过校验的修改通知控制器。
-2. `src/messages.js` 按当前配置筛选消息池、抽取公告、消费队列，展开时间变量并将文本与样式写入 DOM 节点。该层不持有轮播计时器。
-3. `src/app.js` 管理可见性、暂停状态和下一次开关标签的时间。手动和自动弹出共用取消息入口。状态栏文字独立更新。
-4. `src/tabs.js` 持有标签与动画状态，处理近期分组、宽度分配、退场和滚动，并向调度器返回活动公告读完一遍所需的剩余时间。
+| 类型 | 说明 |
+|---|---|
+| 普通文本 | 基础公告内容 |
+| 富文本 | 具有独立文字样式的公告 |
+| 时间变量 | 动态显示日期与时间 |
+| 权重 | 调整公告被抽取的概率 |
+| 顺序队列 | 按指定顺序展示公告 |
+| 条件公告包 | 根据日期、星期、概率等条件抽取公告 |
 
-## 来源
+推荐使用独立的 Messages 编辑器维护公告内容。
 
-本项目从 kitfoxc/Echo-MoJi 的 Hub 分支独立迁移，基线为 `fbc2289`。保留 Sheep-realms 和 Echo-MoJi、Echo-Live 贡献者对原始消息格式、抽取逻辑与富文本样式的署名。项目沿用 GPL-3.0-or-later。参见 [许可证](LICENSE)、[迁移基线](https://github.com/kitfoxc/Echo-MoJi/commit/fbc22890291ee024d53263f406d530dd21e367a3)、[Echo-MoJi](https://github.com/sheep-realms/Echo-MoJi) 和 [Echo-Live](https://github.com/sheep-realms/Echo-Live)。
+完整的富文本格式说明请参阅 [富文本格式文档](styles/README.md)，也可通过编辑器内置的格式 Wiki 查阅。
+
+## 配置管理
+
+运行配置保存于项目根目录的 `config.js`。
+
+当前配置格式为 Version 2，支持全局默认配置及各 Hub 的独立配置。
+
+主要配置包括：
+
+- 主题、配色、字体与状态栏。
+- 标签数量、尺寸与自适应布局。
+- 公告抽取方式与轮播间隔。
+- 标签自动关闭及开合动画。
+- 动画速度、缓动曲线与文字滚动。
+
+推荐通过控制台调整运行参数，并使用配置保存功能持久化设置。
+
+## 自定义主题
+
+TabHub 将核心业务逻辑与主题视觉表现分离，允许通过独立主题目录扩展外观与布局。
+
+### 主题目录
+
+```text
+themes/
+└── example/
+    ├── theme.css
+    ├── motion.css
+    ├── view.js       # 可选
+    └── assets/       # 可选
+```
+
+| 文件 | 职责 |
+|---|---|
+| `theme.css` | 主题外观、布局及样式参数 |
+| `motion.css` | 动画效果、时长及缓动 |
+| `view.js` | 自定义模板及视觉布局逻辑 |
+| `assets/` | 图片、图标及其他资源 |
+
+### 注册主题
+
+在 `src/settings.js` 的 `themeCatalog` 中添加主题定义：
+
+```js
+example: {
+    label: 'Example',
+    layout: 'horizontal'
+}
+```
+
+支持的布局策略：
+
+- `horizontal`：横向标签栏。
+- `vertical`：纵向卡片栏。
+
+如需加载主题脚本，可在注册项中设置 `view: true`。
+
+当前版本采用显式注册机制，不会自动扫描新增主题目录。
+
+### 主题开发
+
+主题可以通过自定义 HTML 模板调整标签内部结构，并通过 `registerTabHubView()` 注册可选的视觉逻辑。
+
+主题脚本支持初始化、布局测量、布局更新及资源清理等生命周期接口。
+
+自定义标签模板应保留核心所需的 `.select`、`.close` 和 `.label` 节点。
+
+主题负责视觉表现，公告抽取、轮播调度、标签生命周期及广播通信由核心模块统一管理。
+
+当前版本支持自定义标签内部模板，尚不支持通过独立 HTML 页面替换整个 Hub 外壳。
+
+建议参考 `themes/default/` 和 `themes/cards/` 中的现有实现进行主题开发，并仅加载可信的主题脚本。
+
+## 项目结构
+
+```text
+TabHub/
+├── hub.html                 # Hub 显示端
+├── console.html             # 广播控制台
+├── messages-editor.html     # 公告编辑器
+├── config.js                # 运行配置
+├── messages.js              # 公告内容
+├── src/                     # 核心业务逻辑
+├── themes/                  # 主题资源
+│   ├── default/
+│   ├── photoshop/
+│   └── cards/
+├── styles/                  # 公共样式与富文本格式
+├── console/                 # 控制台资源
+├── editor/                  # 公告编辑器资源
+├── ui/                      # 公共界面组件
+├── tests/                   # 测试
+├── tools/                   # 开发工具
+└── docs/                    # 项目文档
+```
+
+## 常见问题
+
+### 控制台无法发现 Hub
+
+确认控制台与 Hub 运行于同一个 OBS 浏览器环境，使用一致的 URL 形式，并检查 Hub ID 是否正确。必要时改用本地静态 HTTP 服务。
+
+### 修改公告后没有生效
+
+确认 `messages.js` 已保存，并刷新控制台及相关 Hub 浏览器源。
+
+### 新主题没有出现在列表中
+
+确认主题已在 `src/settings.js` 中注册，且主题目录名称与注册 ID 一致。
+
+### 标签数量未达到设置上限
+
+实际可见标签数量取决于浏览器源尺寸、主题布局及最小标签尺寸。数量上限不代表始终显示指定数量的标签。
+
+## 开发方向
+
+- 进一步完善主题架构与布局策略。
+- 扩展独立 HTML 主题模板能力。
+- 完善主题资源管理及生命周期接口。
+- 优化多 Hub 运行效率与控制体验。
+- 完善开发文档及自动化测试。
+
+## 致谢
+
+TabHub 从 [Echo-MoJi](https://github.com/sheep-realms/Echo-MoJi) 独立迁移，并在此基础上重新设计公告展示、主题系统、广播控制台与消息编辑功能。
+
+感谢以下开源项目及其贡献者：
+
+- [Echo-MoJi](https://github.com/sheep-realms/Echo-MoJi)
+- [Echo-Live](https://github.com/sheep-realms/Echo-Live)
+
+原有消息格式、抽取逻辑及富文本样式的相关贡献者署名予以保留。
+
+## License
+
+本项目遵循 **GPL-3.0-or-later** 开源许可证。
+
+详情请参阅 [LICENSE](LICENSE)。

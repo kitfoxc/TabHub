@@ -1,0 +1,390 @@
+body {
+    margin: 0;
+    height: 100vh;
+    height: 100dvh;
+    display: grid;
+    grid-template: auto auto minmax(0, 1fr) auto / minmax(0, 1fr);
+}
+header,
+footer,
+.pages,
+.actions,
+.heading,
+.entry-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+header,
+.pages,
+footer {
+    padding: 8px 18px;
+}
+header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+}
+h1 {
+    font-size: 19px;
+    margin: 0 auto 0 0;
+}
+h1 span,
+small,
+label,
+footer,
+output {
+    color: var(--muted);
+}
+h1 span,
+small {
+    font-weight: normal;
+}
+header a {
+    color: var(--accent);
+    text-decoration: none;
+}
+h2 {
+    margin: 0;
+    font-size: 17px;
+}
+h3 {
+    font-size: 15px;
+    margin: 12px 0 5px;
+}
+p {
+    margin: 6px 0;
+    overflow-wrap: anywhere;
+}
+.pages button {
+    background: transparent;
+    border-color: transparent;
+}
+.pages [aria-pressed='true'] {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: var(--tint);
+}
+.compact-picker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    font-size: 12px;
+    min-width: 0;
+}
+.compact-picker select {
+    width: auto;
+    max-width: 180px;
+}
+main {
+    min-height: 0;
+    display: flex;
+    position: relative;
+    border-block: 1px solid var(--line);
+    background: var(--panel);
+}
+#manager,
+.center {
+    min-width: 0;
+    overflow: auto;
+}
+#manager {
+    width: clamp(195px, 21%, 275px);
+    padding: 16px;
+    border-right: 1px solid var(--line);
+}
+.center {
+    flex: 1;
+}
+.center > section {
+    max-width: 1080px;
+    margin-inline: auto;
+    padding: clamp(12px, 2.7vw, 32px);
+}
+.heading {
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.hub-card {
+    display: grid;
+    gap: 3px;
+    text-align: left;
+    width: 100%;
+    margin-bottom: 6px;
+    overflow-wrap: anywhere;
+}
+.hub-card[aria-pressed='true'] {
+    border-left: 3px solid var(--accent);
+}
+.dismiss {
+    display: none;
+}
+#hub-tools {
+    margin-top: 18px;
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+}
+summary {
+    cursor: pointer;
+}
+#hub-tools label {
+    margin: 10px 0 4px;
+}
+#remove-hub {
+    margin-top: 4px;
+}
+input:not([type='checkbox']),
+textarea,
+label > select {
+    width: 100%;
+    max-width: 100%;
+}
+textarea {
+    resize: vertical;
+    min-height: 65px;
+}
+label {
+    display: block;
+    font-size: 13px;
+}
+.actions {
+    flex-wrap: wrap;
+}
+#recipients {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    max-height: 90px;
+    overflow: auto;
+    margin-bottom: 8px;
+}
+.dispatch {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--panel);
+    padding: 8px 0 12px;
+    border-bottom: 1px solid var(--line);
+}
+.target-line {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 7px;
+    overflow-wrap: anywhere;
+    max-height: 3em;
+    overflow: auto;
+}
+.target-line strong {
+    color: var(--accent);
+}
+output {
+    display: block;
+    font-size: 12px;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+#library,
+#live {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 18px 0;
+}
+#library > summary {
+    font-weight: 600;
+}
+#library > summary small {
+    margin-left: 8px;
+}
+#library[open] > summary {
+    margin-bottom: 12px;
+}
+ol,
+ul {
+    padding: 0;
+    margin: 8px 0;
+    list-style: none;
+}
+#entries li,
+#log-list > li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+}
+#entries li:last-child,
+#log-list > li:last-child {
+    border: 0;
+}
+#entries ol {
+    margin-left: 12px;
+    border-left: 2px solid var(--line);
+    padding-left: 12px;
+}
+.entry-line {
+    justify-content: space-between;
+    overflow-wrap: anywhere;
+}
+.entry-line button {
+    flex: none;
+}
+.entry-line details {
+    min-width: 0;
+}
+pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    background: var(--bg);
+    padding: 8px;
+    border-radius: 4px;
+}
+.settings-layout {
+    display: grid;
+    grid-template-columns: minmax(105px, 23%) minmax(0, 1fr);
+    gap: 18px;
+}
+#groups,
+.fields {
+    display: grid;
+    align-content: start;
+    gap: 9px;
+}
+#section {
+    display: none;
+}
+fieldset {
+    padding: 0;
+    border: 0;
+    margin: 0;
+    min-width: 0;
+}
+.fields {
+    grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+}
+.fields label > * {
+    display: block;
+    margin-top: 4px;
+}
+#config-files .actions {
+    margin-top: 10px;
+}
+#live {
+    margin-top: 0;
+}
+#instances {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+    gap: 12px;
+}
+#instances article {
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 6px;
+}
+#log-list > li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    overflow-wrap: anywhere;
+}
+#log-list time,
+#log-list ul {
+    font-size: 12px;
+    color: var(--muted);
+}
+.status {
+    display: inline-block;
+    font-size: 12px;
+    border-radius: 4px;
+    background: var(--bg);
+    margin-left: 8px;
+    padding: 1px 7px;
+}
+[data-status='success'] .status {
+    color: light-dark(#256244, #9addb5);
+}
+[data-status='failed'] .status,
+[data-status='timeout'] .status,
+[data-status='partial'] .status {
+    color: light-dark(#9c4525, #f5bc96);
+}
+footer {
+    font-size: 12px;
+}
+footer button {
+    font-size: 12px;
+    padding: 4px 8px;
+}
+#feedback {
+    flex: 1;
+    max-height: 3em;
+    overflow: auto;
+}
+#connection {
+    margin-left: auto;
+}
+@media (max-width: 680px) {
+    header,
+    .pages,
+    footer {
+        padding: 6px 8px;
+    }
+    h1 {
+        font-size: 16px;
+    }
+    header a,
+    header select {
+        font-size: 12px;
+    }
+    .pages {
+        gap: 2px;
+    }
+    .pages button {
+        padding: 4px 7px;
+    }
+    .compact-picker {
+        font-size: 0;
+    }
+    .compact-picker select {
+        font-size: 13px;
+        max-width: 130px;
+    }
+    #manager {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: min(330px, 95%);
+        z-index: 3;
+        background: var(--panel);
+        box-shadow: 6px 0 18px #0002;
+    }
+    .dismiss,
+    #section {
+        display: block;
+    }
+    #groups {
+        display: none;
+    }
+    .settings-layout {
+        display: block;
+    }
+    #section {
+        margin: 0 0 12px;
+        width: 100%;
+    }
+    .actions {
+        gap: 4px;
+    }
+    .dispatch button {
+        padding: 5px 7px;
+        font-size: 13px;
+    }
+    #library,
+    #live {
+        padding: 10px;
+    }
+    .heading {
+        margin-bottom: 8px;
+    }
+    footer {
+        flex-wrap: wrap;
+    }
+}

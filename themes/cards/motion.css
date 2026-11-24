@@ -1,0 +1,3 @@
+:root { --motion-ms: 180; --theme-curve: ease-out; }
+.tab { transition: height var(--motion) var(--curve); }
+.tab.leaving .card { height: calc(var(--closing-height) - 4px); }

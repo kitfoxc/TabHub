@@ -1,0 +1,16 @@
+:root { --motion-ms: 145; --theme-curve: cubic-bezier(.2,.7,.3,1); }
+.tab { transition: width var(--motion) var(--curve); }
+.tab.shelved { transition: width var(--motion) var(--curve), visibility 0s var(--motion); }
+.tab[data-open-side] .face { animation: document-enter var(--motion) var(--curve) backwards; }
+.tab.leaving .face {
+    width: var(--closing-width);
+    animation: document-exit var(--motion) var(--curve) both;
+}
+.tab[data-close-side=left] .face { left: auto; right: 0; }
+@keyframes document-enter {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes document-exit {
+    to { opacity: 0; transform: translateY(-2px); }
+}

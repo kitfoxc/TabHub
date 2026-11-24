@@ -1,0 +1,62 @@
+:root {
+    --design-width: 2048;
+    --max-scale: 4;
+    --title-inset: 20;
+    --close-inset: 38;
+    --icon-only-width: 56;
+    --narrow-width: 110;
+    --strip: #dbdbdb;
+    --panel: #f0f0f0;
+    --line: #ccc;
+    --ink: #454545;
+    --hover: #0001;
+    color: var(--ink);
+}
+:root[data-color="dark"] {
+    --strip: #262626;
+    --panel: #323232;
+    --line: #212121;
+    --ink: #ddd;
+    --hover: #fff2;
+}
+
+.chrome svg { display: block; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; }
+.window-controls { display: none; }
+#pause { display: none; }
+
+/* Place the document strip beside the scene’s left-side content. */
+.chrome {
+    position: absolute; left: 24.267578%; right: .390625%; top: 10.503472%; height: 4.079861%;
+    display: flex; background: var(--strip); border-block: 1px solid var(--line);
+}
+#rail {
+    zoom: var(--tab-scale, 1); flex: 1; align-items: stretch; gap: 0; font-size: 20px;
+}
+#tabs { align-items: stretch; overflow: clip; }
+.tab .face { box-shadow: inset -1px 0 var(--line); }
+.tab:is(.active, .was-active) .face { background: var(--panel); }
+.tab:not(.active):hover .face, #new-tab:hover, .close:hover { background: var(--hover); }
+.select {
+    min-width: 0; padding: 0 3px 0 17px; flex: 1; display: flex;
+    height: 100%; align-items: center; text-align: start;
+}
+.select .favicon { display: none; }
+.icon-only .favicon { display: block; }
+.close, #new-tab { display: grid; align-self: center; place-items: center; padding: 0; }
+.close { flex: none; width: 28px; height: 26px; margin-right: 10px; opacity: .75; border-radius: 2px; }
+.close svg { width: 12px; height: 12px; stroke-width: 4; }
+#new-tab { flex: none; width: 32px; height: 100%; opacity: .72; }
+#new-tab:disabled { opacity: .3; }
+footer {
+    position: absolute; left: 28.2%; right: 58.75%; bottom: .6%; height: 2.2%;
+    display: flex; align-items: center; gap: .55em; overflow: hidden;
+    font-size: min(.73vw, 1.6vh);
+}
+#live { flex: none; max-width: 45%; }
+#detail { margin-left: auto; }
+
+/* A shallow browser source displays just the controls and document tabs. */
+@media (max-height: 200px) {
+    footer { display: none; }
+    .chrome { position: static; height: min(100vh, 48px); }
+}
