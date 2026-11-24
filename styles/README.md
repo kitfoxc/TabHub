@@ -22,7 +22,7 @@ const tabHubMessages = [
 ];
 ```
 
-在广播控制台的结构化公告（JSON）编辑框中，可直接输入单条公告，例如：
+在 Messages 编辑器的「原生源码」模式中，可直接输入单条公告，例如：
 
 ```json
 [
@@ -31,7 +31,7 @@ const tabHubMessages = [
 ]
 ```
 
-JSON 必须使用双引号，不支持注释或尾随逗号。保存公告后按项目的加载方式刷新 Hub。
+上例也符合严格 JSON 语法。保存公告后按项目的加载方式刷新 Hub。
 
 ## 2. 基础样式
 
@@ -171,7 +171,7 @@ JSON 必须使用双引号，不支持注释或尾随逗号。保存公告后按
 - [rich-text.css](rich-text.css)：内置富文本样式及动画。
 - [message-source.js](../src/message-source.js)：公告格式校验、时间变量及富文本渲染。
 - [messages.js](../messages.js)：公告配置。
-- [console-tools.js](../src/console-tools.js)：控制台结构化公告编辑及保存。
+- [console-tools.js](../src/console-tools.js)：控制台只读列表和单条公告调度。
 - [项目 README](../README.md)：整体使用说明。
 
 富文本样式继承自 [Echo-Live](https://github.com/sheep-realms/Echo-Live) / [Echo-MoJi](https://github.com/sheep-realms/Echo-MoJi)，保留原项目署名及许可。

@@ -58,8 +58,14 @@ function button(text, action) {
     return btn;
 }
 
+const settingGroups = {
+    '主题与外观': { ...sections['界面主题'], ...sections['消息文字'], ...sections['状态栏'] },
+    '标签布局': sections['标签布局'],
+    '轮播行为': { ...sections['公告抽取'], ...sections['弹出与关闭'] },
+    '动画效果': sections['动画与滚动']
+};
 function buildPanel() {
-    for (const [name, group] of Object.entries(sections)) {
+    for (const [name, group] of Object.entries(settingGroups)) {
         sectionSelect.add(new Option(name));
         const panel = document.createElement('fieldset');
         panel.dataset.section = name;
@@ -87,13 +93,8 @@ function buildPanel() {
         }
         form.append(panel);
     }
-    sectionSelect.add(new Option('配置迁移'));
-    const transfer = document.createElement('fieldset');
-    transfer.dataset.section = '配置迁移';
-    const file = document.createElement('input');
-    file.type = 'file';
-    file.accept = '.js,.json';
-    file.hidden = true;
+    sectionSelect.add(new Option('配置管理'));
+    const file = document.getElementById('config-file');
     file.onchange = async () => {
         try {
             const selected = file.files[0];
@@ -107,14 +108,16 @@ function buildPanel() {
         finally { file.value = ''; }
     };
     document.getElementById('import-config').onclick = () => file.click();
-    transfer.append(button('导入配置', () => file.click()), file);
-    form.append(transfer);
 }
 
 function updatePanel() {
     for (const item of document.querySelectorAll('[data-group]')) item.setAttribute('aria-pressed', String(item.dataset.group === sectionSelect.value));
     for (const group of form.querySelectorAll('fieldset')) group.hidden = group.dataset.section !== sectionSelect.value;
-    document.getElementById('restore').hidden = sectionSelect.value === '配置迁移';
+    const managingFiles = sectionSelect.value === '配置管理';
+    document.getElementById('restore').hidden = managingFiles || !current;
+    document.getElementById('config-files').hidden = !managingFiles;
+    document.getElementById('applied').hidden = managingFiles;
+    form.hidden = managingFiles || !current;
     const adaptive = options.fitText === 'on';
     const vertical = themeCatalog[options.themeId].layout === 'vertical';
     for (const key of ['fitText', 'minWidth']) form.elements[key].parentElement.hidden = vertical;
@@ -147,7 +150,7 @@ function readPanel() {
         }
     }
     const horizontal = !form.elements.fitText.parentElement.hidden;
-    for (const key of Object.keys(sections[sectionSelect.value] ?? {})) {
+    for (const key of Object.keys(settingGroups[sectionSelect.value] ?? {})) {
         const field = form.elements[key];
         const visible = key === 'maxWidth' ? horizontal && value.fitText === 'off'
             : key === 'recentCount' ? horizontal && value.fitText === 'on' : !field.parentElement.hidden;
@@ -174,7 +177,7 @@ for (const option of sectionSelect.options) {
 sectionSelect.onchange = () => { updatePanel(); feedback.textContent = ''; };
 document.getElementById('restore').onclick = () => {
     const value = { ...options };
-    for (const key of Object.keys(sections[sectionSelect.value])) value[key] = defaults[key];
+    for (const key of Object.keys(settingGroups[sectionSelect.value])) value[key] = defaults[key];
     applyOptions(value); fillPanel();
 };
 fillPanel();

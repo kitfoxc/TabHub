@@ -1,34 +1,79 @@
 'use strict';
 
 const pageButtons = document.querySelectorAll('[data-page]');
-for (const button of pageButtons) button.onclick = () => {
-    for (const tab of pageButtons) {
-        document.getElementById(tab.dataset.page).hidden = tab !== button;
-        tab.setAttribute('aria-pressed', String(tab === button));
-    }
-};
+for (const button of pageButtons)
+    button.onclick = () => {
+        for (const tab of pageButtons) {
+            document.getElementById(tab.dataset.page).hidden = tab !== button;
+            tab.setAttribute('aria-pressed', String(tab === button));
+        }
+    };
 
 const logList = document.getElementById('log-list');
-function writeLog(message) {
-    const item = document.createElement('li');
-    item.textContent = new Date().toLocaleTimeString() + ' · ' + message;
-    logList.prepend(item);
-    const activity = document.getElementById('activity');
-    activity.prepend(item.cloneNode(true));
-    if (activity.children.length > 5) activity.lastElementChild.remove();
-    if (logList.children.length > 200) logList.lastElementChild.remove();
+function element(tag, text) {
+    const node = document.createElement(tag);
+    node.textContent = text;
+    return node;
 }
-document.getElementById('clear-log').onclick = () => {
-    logList.replaceChildren();
-    document.getElementById('activity').replaceChildren();
+function logRow() {
+    const row = document.createElement('li');
+    row.append(element('time', new Date().toLocaleTimeString()));
+    logList.prepend(row);
+    if (logList.children.length > 200) logList.lastElementChild.remove();
+    return row;
+}
+function writeLog(message) {
+    logRow().append(element('span', message));
+}
+const statusLabels = {
+    pending: '等待回执',
+    success: '成功',
+    partial: '部分成功',
+    failed: '失败',
+    timeout: '超时'
 };
+function logOperation(title, recipients, content) {
+    const row = logRow();
+    row.dataset.operation = broadcastId();
+    row.dataset.status = 'pending';
+    const body = document.createElement('div');
+    const summary = element('strong', title);
+    const badge = element('span', statusLabels.pending);
+    badge.className = 'status';
+    body.append(summary, badge);
+    if (content) body.append(element('p', content));
+    const results = document.createElement('ul');
+    body.append(results);
+    row.append(body);
+    const targets = recipients.map(({ hub, peer }) => {
+        const label = peer ? hub + ' · ' + peer.instance.slice(0, 6) : hub;
+        const node = element('li', label + '　等待回执');
+        results.append(node);
+        return { label, node, status: 'pending' };
+    });
+    function update(index, status, message) {
+        const target = targets[index];
+        target.status = status;
+        target.node.textContent = target.label + '　' + message;
+        const states = targets.map((t) => t.status);
+        let overall = 'failed';
+        if (states.includes('pending')) overall = 'pending';
+        else if (states.every((s) => s === 'success')) overall = 'success';
+        else if (states.includes('success')) overall = 'partial';
+        else if (states.every((s) => s === 'timeout')) overall = 'timeout';
+        badge.textContent = statusLabels[overall];
+        row.dataset.status = overall;
+    }
+    return update;
+}
+document.getElementById('clear-log').onclick = () => logList.replaceChildren();
 
 const handles = new Map();
 async function saveScript(filename, contents) {
     let result;
     if (typeof window.showSaveFilePicker === 'function') {
         try {
-            const handle = handles.get(filename) ?? await window.showSaveFilePicker({ suggestedName: filename });
+            const handle = handles.get(filename) ?? (await window.showSaveFilePicker({ suggestedName: filename }));
             const stream = await handle.createWritable();
             await stream.write(contents);
             await stream.close();
@@ -36,7 +81,10 @@ async function saveScript(filename, contents) {
             result = '已写入 ' + handle.name;
         } catch (error) {
             if (error.name === 'AbortError') result = '已取消保存 ' + filename;
-            else { handles.delete(filename); writeLog(filename + ' 写入失败 · ' + error.message); }
+            else {
+                handles.delete(filename);
+                writeLog(filename + ' 写入失败 · ' + error.message);
+            }
         }
     }
     if (!result) {
@@ -47,91 +95,82 @@ async function saveScript(filename, contents) {
     return result;
 }
 
-const entries = document.getElementById('entries');
-const editorState = document.getElementById('message-state');
-const samples = { text: '', rich: [{ text: '公告', style: { bold: true } }],
-    queue: { type: 'queue', content: ['第一条', '第二条'] },
-    pack: { type: 'pack', conditions: [{ condition: 'weekday_check', weekday: 6 }], content: ['周六公告'] } };
-
-function addEntry(value) {
-    const row = document.createElement('li');
-    const field = document.createElement('textarea');
-    const plain = typeof value === 'string';
-    const label = document.createElement('label');
-    label.textContent = plain ? '纯文本' : '结构化公告（JSON）';
-    field.dataset.format = plain ? 'text' : 'json';
-    field.rows = plain ? 2 : 5;
-    field.value = plain ? value : JSON.stringify(value, null, 2);
-    label.append(field);
+const library = document.getElementById('library');
+const catalog = typeof tabHubMessages !== 'undefined' && Array.isArray(tabHubMessages) ? tabHubMessages : [];
+document.getElementById('entry-count').textContent = 'messages.js · ' + catalog.length + ' 条';
+let catalogRows = [];
+function entryText(entry) {
+    return (Array.isArray(entry) ? entry : [entry])
+        .map((part) => (typeof part === 'string' ? part : part.text))
+        .join('');
+}
+function buildCatalogRow(entry, number, now) {
+    const node = document.createElement('li');
+    if (!validEntry(entry)) {
+        node.textContent = number + ' · 无效公告';
+        return { node, search: node.textContent, children: [] };
+    }
+    const container = entry?.type === 'queue' || entry?.type === 'pack';
+    const rich = !container && typeof entry !== 'string';
+    const type = container ? (entry.type === 'queue' ? '队列' : '条件包') : rich ? '富文本' : '文本';
+    const title = number + ' · ' + type;
+    const children = [];
+    const line = element('div', '');
+    line.className = 'entry-line';
+    node.append(line);
     const details = document.createElement('details');
-    const summary = document.createElement('summary');
-    function updateSummary() {
-        const text = field.value;
-        let caption = text;
-        if (!plain) {
-            try {
-                const value = JSON.parse(text);
-                caption = value.type === 'queue' ? '队列 · ' + value.content.length + ' 条' :
-                    value.type === 'pack' ? '条件包 · ' + value.content.length + ' 条' :
-                    (Array.isArray(value) ? value : [value]).map(p=>typeof p === 'string'?p:p.text).join('');
-            } catch { caption = '待修正的 JSON'; }
+    if (container) {
+        node.replaceChildren(details);
+        details.append(element('summary', title + ' · ' + entry.content.length + ' 项'));
+        const list = element('ol', '');
+        if (entry.type === 'pack' && !packAvailable(entry, now)) {
+            details.append(element('p', '当前条件未满足'));
+        } else {
+            entry.content.forEach((child, i) => {
+                const row = buildCatalogRow(child, number + '.' + (i + 1), now);
+                children.push(row);
+                list.append(row.node);
+            });
+            details.append(list);
         }
-        summary.textContent = caption || '空公告';
+    } else {
+        const text = entryText(entry);
+        if (rich) {
+            details.append(element('summary', text || '空公告'), element('pre', JSON.stringify(entry, null, 2)));
+            line.append(details);
+        } else line.append(element('span', text || '空公告'));
+        const send = element('button', '发送此条');
+        send.disabled = !text.trim();
+        send.onclick = () => dispatch('entry', entry);
+        line.append(send);
+        node.prepend(element('small', title));
     }
-    field.oninput = updateSummary;
-    updateSummary();
-    row.append(details);
-    details.append(summary,label);
-    for (const [caption, action] of [
-        ['上移', () => row.previousElementSibling?.before(row)],
-        ['下移', () => row.nextElementSibling?.after(row)],
-        ['删除', () => row.remove()]
-    ]) {
-        const button = document.createElement('button');
-        button.textContent = caption;
-        button.onclick = () => { action(); filterEntries(); editorState.textContent = '列表已修改。'; };
-        details.append(button);
+    return {
+        node,
+        details,
+        children,
+        search: (title + ' ' + (container ? '' : JSON.stringify(entry))).toLowerCase()
+    };
+}
+function filterCatalog() {
+    const q = document.getElementById('search').value.trim().toLowerCase();
+    function match(row, parentMatched) {
+        const own = parentMatched || row.search.includes(q);
+        const childMatch = row.children.map((child) => match(child, own)).some(Boolean);
+        if (q && childMatch && row.details) row.details.open = true;
+        row.node.hidden = !own && !childMatch;
+        return !row.node.hidden;
     }
-    entries.append(row);
-    return field;
+    const any = catalogRows.map((row) => match(row, false)).some(Boolean);
+    const empty = document.getElementById('empty-library');
+    empty.hidden = any;
+    empty.textContent = catalog.length ? '没有匹配的公告。' : '当前公告库为空。';
 }
-if (typeof tabHubMessages !== 'undefined' && Array.isArray(tabHubMessages)) tabHubMessages.forEach(addEntry);
-else editorState.textContent = '未能读取 messages.js。';
-entries.oninput = () => { editorState.textContent = '列表已修改。'; };
-document.getElementById('add-entry').onclick = () => {
-    document.getElementById('search').value = '';
-    const field = addEntry(samples[document.getElementById('entry-kind').value]);
-    filterEntries();
-    field.closest('details').open = true;
-    field.focus();
-    editorState.textContent = '列表已修改。';
+library.ontoggle = () => {
+    if (!library.open) return;
+    const now = new Date();
+    catalogRows = catalog.map((value, i) => buildCatalogRow(value, String(i + 1), now));
+    document.getElementById('entries').replaceChildren(...catalogRows.map((row) => row.node));
+    filterCatalog();
 };
-document.getElementById('save-messages').onclick = async event => {
-    const button = event.currentTarget;
-    button.disabled = true;
-    try {
-        const data = Array.from(entries.querySelectorAll('textarea'), (field, i) => {
-            try {
-                const value = field.dataset.format === 'text' ? field.value : JSON.parse(field.value);
-                if (!validEntry(value)) throw new Error('公告格式无效');
-                return value;
-            } catch (error) {
-                document.getElementById('search').value = '';
-                filterEntries();
-                field.closest('details').open = true;
-                field.focus();
-                throw new Error('第 ' + (i + 1) + ' 条 · ' + error.message);
-            }
-        });
-        editorState.textContent = await saveScript('messages.js', 'const tabHubMessages = ' + JSON.stringify(data, null, 2) + ';\n');
-    } catch (error) { editorState.textContent = error.message; writeLog('公告保存失败 · ' + error.message); }
-    finally { button.disabled = false; }
-};
-
-function filterEntries() {
-    const query = document.getElementById('search').value.toLowerCase();
-    for(const row of entries.children) row.hidden = !row.querySelector('textarea').value.toLowerCase().includes(query);
-    document.getElementById('entry-count').textContent = entries.children.length;
-}
-document.getElementById('search').oninput = filterEntries;
-filterEntries();
+document.getElementById('search').oninput = filterCatalog;

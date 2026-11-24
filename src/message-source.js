@@ -37,12 +37,16 @@ function passesCondition(rule, date) {
     }
 }
 
+function packAvailable(entry, date) {
+    const rules = Array.isArray(entry.conditions) ? entry.conditions : [entry.conditions];
+    return entry.conditions == null || (rules.length > 0 && rules.every(rule => passesCondition(rule, date)));
+}
+
 function messagePool(entries, date) {
     const pool = [];
     for (const entry of entries) {
         if (entry?.type !== 'pack') { pool.push(entry); continue; }
-        const rules = Array.isArray(entry.conditions) ? entry.conditions : [entry.conditions];
-        if (entry.conditions == null || (rules.length && rules.every(rule => passesCondition(rule, date)))) {
+        if (packAvailable(entry, date)) {
             pool.push(...messagePool(entry.content, date));
         }
     }

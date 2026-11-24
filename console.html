@@ -6,8 +6,6 @@
         <title>TabHub 控制台</title>
         <link rel="stylesheet" href="ui/workbench.css" />
         <link rel="stylesheet" href="console/workspace.css" />
-        <link rel="stylesheet" href="styles/rich-text.css" />
-        <script defer src="editor/formats.js"></script>
         <script defer src="config.js"></script>
         <script defer src="src/settings.js"></script>
         <script defer src="src/broadcast.js"></script>
@@ -20,31 +18,25 @@
     </head>
     <body>
         <header>
-            <h1>TabHub <span>广播控制台</span></h1>
+            <h1>
+                TabHub
+                <span>广播控制台</span>
+            </h1>
             <a href="messages-editor.html" target="_blank" rel="noopener">Messages 编辑器 ↗</a>
-            <details class="tools">
-                <summary>全局工具</summary>
-                <div>
-                    <button id="manage">管理 Hub</button><button id="import-config">导入配置</button
-                    ><button id="save-config">保存全部配置</button>
-                    <label
-                        >控制台配色<select id="scheme">
-                            <option value="auto">跟随系统</option>
-                            <option value="light">浅色</option>
-                            <option value="dark">深色</option>
-                        </select></label
-                    >
-                </div>
-            </details>
+            <select id="scheme" aria-label="控制台外观">
+                <option value="auto">跟随系统</option>
+                <option value="light">浅色</option>
+                <option value="dark">深色</option>
+            </select>
         </header>
         <nav class="pages" aria-label="工作区">
-            <button data-page="cast" aria-pressed="true">广播</button
-            ><button data-page="preferences" aria-pressed="false">设置</button
-            ><button data-page="logs" aria-pressed="false">日志</button
-            ><label class="compact-picker"
-                >当前 Hub
-                <select id="hub"></select
-            ></label>
+            <button data-page="cast" aria-pressed="true">广播</button>
+            <button data-page="preferences" aria-pressed="false">设置</button>
+            <button data-page="logs" aria-pressed="false">日志</button>
+            <label class="compact-picker">
+                当前 Hub
+                <select id="hub"></select>
+            </label>
         </nav>
         <main>
             <aside id="manager">
@@ -56,19 +48,20 @@
                 <details id="hub-tools">
                     <summary>管理显示端</summary>
                     <form id="add-hub">
-                        <label
-                            >新 Hub ID<input
-                                id="hub-id"
-                                required
-                                pattern="[A-Za-z0-9_\-]{1,48}"
-                                maxlength="48" /></label
-                        ><button>添加</button>
+                        <label>
+                            新 Hub ID
+                            <input id="hub-id" required pattern="[A-Za-z0-9_\-]{1,48}" maxlength="48" />
+                        </label>
+                        <button>添加</button>
                     </form>
-                    <label>当前 Hub 浏览器源 URL<input id="source-url" readonly /></label
-                    ><button id="copy-url">复制 URL</button>
+                    <label>
+                        当前 Hub 浏览器源 URL
+                        <input id="source-url" readonly />
+                    </label>
+                    <button id="copy-url">复制 URL</button>
+                    <button id="remove-hub">移除此 Hub</button>
                 </details>
             </aside>
-            <div class="divider" data-side="left"></div>
             <div class="center">
                 <section id="cast">
                     <div class="composer">
@@ -89,36 +82,39 @@
                         ></textarea>
                     </div>
                     <div class="dispatch">
-                        <div class="target-line">发送及轮播目标 <strong id="targets"></strong></div>
+                        <div class="target-line">
+                            发送及轮播目标
+                            <strong id="targets"></strong>
+                        </div>
                         <div class="actions">
-                            <button class="primary" id="send">发送公告</button
-                            ><button data-command="toggle">暂停／启动</button
-                            ><button data-command="next">下一条</button
-                            ><button data-command="clear">清空公告</button>
+                            <button class="primary" id="send">发送公告</button>
+                            <button data-command="toggle">暂停／启动</button>
+                            <button data-command="next">下一条</button>
+                            <button data-command="clear">清空公告</button>
                         </div>
                     </div>
                     <output id="delivery" role="status"></output>
-                    <div id="library">
-                        <div class="heading">
-                            <h2>轮播公告 <small id="entry-count"></small></h2>
-                            <input type="search" id="search" aria-label="搜索轮播公告" placeholder="搜索公告" />
-                        </div>
+                    <details id="library">
+                        <summary>
+                            轮播公告
+                            <small id="entry-count"></small>
+                        </summary>
+                        <input
+                            type="search"
+                            id="search"
+                            aria-label="搜索轮播公告"
+                            placeholder="搜索公告内容或类型"
+                        />
                         <ol id="entries"></ol>
-                        <div class="actions">
-                            <select aria-label="新增条目类型" id="entry-kind">
-                                <option value="text">纯文本</option>
-                                <option value="rich">富文本</option>
-                                <option value="queue">队列</option>
-                                <option value="pack">条件包</option></select
-                            ><button id="add-entry">新增</button
-                            ><button id="save-messages">保存 messages.js</button>
-                        </div>
-                        <output id="message-state"></output>
-                    </div>
+                        <p id="empty-library" hidden></p>
+                    </details>
                 </section>
                 <section id="preferences" hidden>
                     <div class="heading">
-                        <h2>Hub 设置 <small id="settings-hub"></small></h2>
+                        <h2>
+                            Hub 设置
+                            <small id="settings-hub"></small>
+                        </h2>
                         <button id="restore">重置本组</button>
                     </div>
                     <div class="settings-layout">
@@ -126,11 +122,27 @@
                         <div>
                             <select id="section" aria-label="设置分类"></select>
                             <form id="options"></form>
+                            <div id="config-files" hidden>
+                                <h3>全局配置文件</h3>
+                                <p>导入或保存默认设置和全部 Hub 的配置。</p>
+                                <div class="actions">
+                                    <button id="import-config">导入配置</button>
+                                    <button id="save-config" class="primary">保存全部配置</button>
+                                </div>
+                                <input id="config-file" type="file" accept=".js,.json" hidden />
+                            </div>
                             <output id="applied"></output>
                         </div>
                     </div>
                 </section>
                 <section id="logs" hidden>
+                    <section id="live" aria-label="Hub 状态快照">
+                        <div class="heading">
+                            <h2>当前播出</h2>
+                            <small id="live-hub"></small>
+                        </div>
+                        <div id="instances"></div>
+                    </section>
                     <div class="heading">
                         <h2>会话日志</h2>
                         <button id="clear-log">清空日志</button>
@@ -138,40 +150,11 @@
                     <ol id="log-list"></ol>
                 </section>
             </div>
-            <div class="divider" data-side="right"></div>
-            <aside id="inspector">
-                <div class="heading">
-                    <h2>检查器</h2>
-                    <button class="dismiss" data-close="inspector">收起</button>
-                </div>
-                <nav class="tabs" aria-label="检查器">
-                    <button data-view="live" aria-pressed="true">当前播出</button
-                    ><button data-view="draft">发送预览</button><button data-view="wiki">格式 Wiki</button>
-                </nav>
-                <section id="live">
-                    <h3 id="live-hub"></h3>
-                    <div id="instances"></div>
-                </section>
-                <section id="draft" hidden>
-                    <p id="preview-label"></p>
-                    <div id="viewport"></div>
-                    <div class="actions">
-                        <label>画布宽<input id="width" type="number" min="100" max="7680" value="800" /></label
-                        ><label>高<input id="height" type="number" min="60" max="4320" value="450" /></label>
-                    </div>
-                    <output id="preview-error"></output>
-                </section>
-                <section id="wiki" hidden>
-                    <input id="wiki-search" type="search" aria-label="搜索格式" placeholder="搜索格式" />
-                    <div id="formats"></div>
-                </section>
-                <h3>最近活动</h3>
-                <ol id="activity"></ol>
-            </aside>
         </main>
         <footer>
-            <button id="left-toggle">Hub 列表</button><button id="right-toggle">检查器</button
-            ><output id="feedback" role="status"></output><span id="connection"></span>
+            <button id="left-toggle" aria-controls="manager">Hub 列表</button>
+            <output id="feedback" role="status"></output>
+            <span id="connection"></span>
         </footer>
     </body>
 </html>

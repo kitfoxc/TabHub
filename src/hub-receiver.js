@@ -21,7 +21,7 @@ function announce(type, data = {}) {
         paused, count: strip.size, themeId: options.themeId,
         text: (document.querySelector('#tabs > .active .label')?.textContent ?? '').slice(0, 512)
     } : undefined;
-    sendPacket({ type, playback, hub: hubId, instance, session: consoleSession, ...data });
+    sendPacket({ type, playback, supportsEntry: true, hub: hubId, instance, session: consoleSession, ...data });
 }
 
 function receivePacket(packet) {
@@ -57,16 +57,28 @@ function receivePacket(packet) {
 
 async function executePacket(packet) {
     let result;
+    let ok = true;
     try {
         switch (packet.type) {
             case 'configure':
-                result = await applyHubSettings(packet.settings) ? '已应用' : '已由更新的配置取代';
+                ok = await applyHubSettings(packet.settings);
+                result = ok ? '已应用' : '已由更新的配置取代';
                 break;
             case 'message': {
                 if (typeof packet.text !== 'string' || !packet.text.trim()) throw new Error('公告为空');
                 const label = document.createElement('span');
                 label.textContent = packet.text;
                 if (!appendAnnouncement(label, true)) throw new Error('标签数量上限为 0');
+                refresh();
+                result = '已创建标签';
+                break;
+            }
+            case 'entry': {
+                const entry = packet.entry;
+                if (entry?.type === 'queue' || entry?.type === 'pack' || !validEntry(entry)) throw new Error('无效的公告条目');
+                const content = formatMessage(entry, options.variables === 'on');
+                if (!content.textContent.trim()) throw new Error('公告为空');
+                if (!appendAnnouncement(content, true)) throw new Error('标签数量上限为 0');
                 refresh();
                 result = '已创建标签';
                 break;
@@ -85,14 +97,16 @@ async function executePacket(packet) {
                 result = paused ? '已暂停' : '已恢复';
                 break;
             case 'next':
-                result = nextTab() ? '已创建标签' : '没有可创建的标签';
+                ok = Boolean(nextTab());
+                result = ok ? '已创建标签' : '没有可创建的标签';
                 break;
             default: return;
         }
     } catch (error) {
+        ok = false;
         result = packet.type === 'configure' ? '配置应用失败，请检查字段和主题资源' : error.message;
     }
-    if (consoleSession === packet.session) announce('ack', { id: packet.id, result });
+    if (consoleSession === packet.session) announce('ack', { id: packet.id, result, ok });
 }
 
 if (sendPacket) {
