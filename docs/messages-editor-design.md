@@ -1,6 +1,6 @@
 # TabHub Messages Editor
 
-双击根目录的 `messages-editor.html`，点「打开」选择本地消息文件。也可以从控制台「公告列表」打开编辑器。首次启动进入空工作区，每次打开文件都会增加一个文档。合并导入会将消息追加到当前文档；拖入多个文件可分别编辑。Ctrl+S 保存，Ctrl+Shift+S 另存为，Ctrl+Z 撤销，Ctrl+Y 或 Ctrl+Shift+Z 重做。
+双击根目录的 `messages-editor.html`，点「打开」选择本地消息文件。也可以从控制台顶部「Messages 编辑器」打开编辑器。首次启动进入空工作区，每次打开文件都会增加一个文档。合并导入会将消息追加到当前文档；拖入多个文件可分别编辑。Ctrl+S 保存，Ctrl+Shift+S 另存为，Ctrl+Z 撤销，Ctrl+Y 或 Ctrl+Shift+Z 重做。
 
 ## 从编辑到显示
 

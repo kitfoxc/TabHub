@@ -73,7 +73,7 @@ function buildPanel() {
             const input = document.createElement(tag);
             input.name = key;
             input.autocomplete = 'off';
-            label.title = settingHelp[key];
+            label.title = settingHelp[key] + ' 默认值：' + (field.choices?.[field.value] ?? (field.value === '' ? '跟随主题' : field.value));
             label.append(input);
             grid.append(label);
             if (field.choices) {
@@ -106,11 +106,13 @@ function buildPanel() {
         } catch (error) { feedback.textContent = '导入失败。' + error.message; }
         finally { file.value = ''; }
     };
+    document.getElementById('import-config').onclick = () => file.click();
     transfer.append(button('导入配置', () => file.click()), file);
     form.append(transfer);
 }
 
 function updatePanel() {
+    for (const item of document.querySelectorAll('[data-group]')) item.setAttribute('aria-pressed', String(item.dataset.group === sectionSelect.value));
     for (const group of form.querySelectorAll('fieldset')) group.hidden = group.dataset.section !== sectionSelect.value;
     document.getElementById('restore').hidden = sectionSelect.value === '配置迁移';
     const adaptive = options.fitText === 'on';
@@ -161,6 +163,14 @@ form.oninput = e => {
     try { applyOptions(readPanel()); updatePanel(); }
     catch (error) { feedback.textContent = error.message; }
 };
+for (const option of sectionSelect.options) {
+    const item = button(option.text, () => {
+        sectionSelect.value = option.value;
+        sectionSelect.onchange();
+    });
+    item.dataset.group = option.value;
+    document.getElementById('groups').append(item);
+}
 sectionSelect.onchange = () => { updatePanel(); feedback.textContent = ''; };
 document.getElementById('restore').onclick = () => {
     const value = { ...options };

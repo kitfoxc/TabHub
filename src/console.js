@@ -16,6 +16,12 @@ let delivery = new Map();
 const transmit = openHubChannel(onPacket);
 const session = transmit && broadcastId();
 let discoverTimer;
+let configRevision = 0;
+function markConfigChanged() {
+    configRevision++;
+    byId('save-config').textContent = '保存全部配置 •';
+    byId('save-config').title = '有尚未写入文件的配置';
+}
 
 function selectHub(id) {
     current = id;
@@ -25,6 +31,10 @@ function selectHub(id) {
     url.searchParams.set('hub', id);
     byId('source-url').value = url.href;
     showConfigStatus();
+    workspaceChanged();
+}
+function workspaceChanged() {
+    document.dispatchEvent(new Event('hubworkspacechange'));
 }
 function showConfigStatus() {
     byId('applied').textContent = configResults.get(current) || '';
@@ -41,12 +51,13 @@ function renderHubs() {
         const box = document.createElement('input');
         box.type = 'checkbox';
         box.checked = chosen.has(id);
-        box.onchange = () => box.checked ? chosen.add(id) : chosen.delete(id);
+        box.onchange = () => { if (box.checked) chosen.add(id); else chosen.delete(id); workspaceChanged(); };
         label.append(box, name);
         choices.append(label);
     }
     hubSelect.value = current;
     byId('connection').textContent = transmit ? '在线显示端 ' + peers.size : '当前环境无法使用内置广播';
+    workspaceChanged();
 }
 function renderDelivery() {
     byId('delivery').textContent = [...delivery].map(([label, result]) => label + ' · ' + result).join('\n');
@@ -89,12 +100,12 @@ function onPacket(packet) {
     const peer = peers.get(packet.instance);
     if (packet.type === 'present') {
         if (discoverTimer === undefined) return;
-        if (peer) { peer.seen = Date.now(); return; }
+        if (peer) { peer.seen = Date.now(); peer.playback = packet.playback; workspaceChanged(); return; }
         const firstForHub = ![...peers.values()].some(p => p.hub === packet.hub);
         let liveSettings;
         try { liveSettings = restoreProfile(packet.settings); }
         catch { return; }
-        const added = { hub: packet.hub, instance: packet.instance, seen: Date.now(), sequence: 0, status: '已读取显示端设置' };
+        const added = { playback: packet.playback, hub: packet.hub, instance: packet.instance, seen: Date.now(), sequence: 0, status: '已读取显示端设置' };
         writeLog(packet.hub + ' · 已上线');
         peers.set(packet.instance, added);
         if (firstForHub && !editedProfiles.has(packet.hub)) {
@@ -113,7 +124,11 @@ function onPacket(packet) {
         renderHubs();
     } else if (packet.type === 'ack') {
         const pending = receipts.get(packet.id);
-        if (peer && pending?.peer === peer && typeof packet.result === 'string') pending.finish(packet.result);
+        if (peer && pending?.peer === peer && typeof packet.result === 'string') {
+            peer.playback = packet.playback;
+            pending.finish(packet.result);
+            workspaceChanged();
+        }
     }
 }
 function forgetPeer(peer) {
@@ -126,9 +141,11 @@ function forgetPeer(peer) {
 }
 function applyOptions(value) {
     validate(value);
+    markConfigChanged();
     options = value;
     profiles.set(current, value);
     editedProfiles.add(current);
+    workspaceChanged();
     configResults.set(current, '离线，下次上线时同步');
     showConfigStatus();
     for (const peer of peers.values()) if (peer.hub === current) syncPeer(peer);
@@ -136,6 +153,7 @@ function applyOptions(value) {
 }
 function importConfig(data) {
     const loaded = readConfig(data);
+    markConfigChanged();
     baseSettings = loaded.settings;
     // Import all named profiles and keep other Hubs in this session.
     for (const [id, value] of loaded.hubs) {
@@ -147,9 +165,12 @@ function importConfig(data) {
     for (const peer of peers.values()) if (loaded.hubs.has(peer.hub)) syncPeer(peer);
     byId('feedback').textContent = '已合入配置。保存后可在重启时恢复。';
 }
-function dispatch(type) {
+function targetHubs() {
     const scope = byId('scope').value;
-    const targets = scope === 'current' ? [current] : scope === 'selected' ? [...chosen] : [...new Set([...peers.values()].map(p => p.hub))];
+    return scope === 'current' ? [current] : scope === 'selected' ? [...chosen] : [...new Set([...peers.values()].map(p => p.hub))];
+}
+function dispatch(type) {
+    const targets = targetHubs();
     const text = byId('message').value;
     delivery = new Map();
     if (!targets.length || (type === 'message' && !text.trim())) {
@@ -177,13 +198,16 @@ byId('add-hub').onsubmit = event => {
     event.preventDefault();
     const id = byId('hub-id').value.trim();
     if (!validHubId(id)) { byId('feedback').textContent = '请输入有效的 Hub ID。'; return; }
-    if (!profiles.has(id)) profiles.set(id, { ...baseSettings });
+    if (!profiles.has(id)) {
+        profiles.set(id, { ...baseSettings });
+        markConfigChanged();
+    }
     renderHubs();
     selectHub(id);
     fillPanel();
     byId('hub-id').value = '';
 };
-byId('scope').onchange = () => { byId('recipients').hidden = byId('scope').value !== 'selected'; };
+byId('scope').onchange = () => { byId('recipients').hidden = byId('scope').value !== 'selected'; workspaceChanged(); };
 byId('send').onclick = () => dispatch('message');
 for (const button of document.querySelectorAll('[data-command]')) button.onclick = () => dispatch(button.dataset.command);
 
@@ -194,7 +218,13 @@ byId('save-config').onclick = async event => {
         readPanel();
         const data = { version: 2, settings: baseSettings, hubs: Object.fromEntries(profiles) };
         const script = configPrefix + JSON.stringify(data, null, 2) + ';\n';
-        byId('feedback').textContent = await saveScript('config.js', script);
+        const revision = configRevision;
+        const result = await saveScript('config.js', script);
+        byId('feedback').textContent = result;
+        if (result.startsWith('已写入') && configRevision === revision) {
+            button.textContent = '保存全部配置';
+            button.title = '';
+        }
     } catch (error) { byId('feedback').textContent = error.message; writeLog(error.message); }
     finally { button.disabled = false; }
 };

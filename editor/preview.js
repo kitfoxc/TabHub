@@ -56,6 +56,7 @@ window.addEventListener('message', async (event) => {
         if (
             !(await applyHubSettings({
                 ...defaults,
+                ...data.settings,
                 themeId: data.theme,
                 colorMode: data.palette,
                 openTiming: 'fixed',

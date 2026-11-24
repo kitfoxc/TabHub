@@ -16,7 +16,12 @@ function sleepBroadcast() {
 }
 
 function announce(type, data = {}) {
-    sendPacket({ type, hub: hubId, instance, session: consoleSession, ...data });
+    // Piggyback on existing discovery and command receipts, including after a console wakes.
+    const playback = type === 'present' || type === 'ack' ? {
+        paused, count: strip.size, themeId: options.themeId,
+        text: (document.querySelector('#tabs > .active .label')?.textContent ?? '').slice(0, 512)
+    } : undefined;
+    sendPacket({ type, playback, hub: hubId, instance, session: consoleSession, ...data });
 }
 
 function receivePacket(packet) {

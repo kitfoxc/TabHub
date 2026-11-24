@@ -1,33 +1,4 @@
-:root {
-    color-scheme: light dark;
-    --bg: light-dark(#f4f5f8, #161920);
-    --panel: light-dark(#fff, #20242c);
-    --ink: light-dark(#222934, #e8edf5);
-    --muted: light-dark(#5a6474, #b1bbc9);
-    --line: light-dark(#d8dee6, #3b4351);
-    --accent: light-dark(#305bae, #a8c6ff);
-    --tint: light-dark(#eaf0fc, #283752);
-    --left: 24%;
-    --right: 34%;
-    font:
-        14px/1.5 'Segoe UI',
-        'Microsoft YaHei UI',
-        sans-serif;
-    color: var(--ink);
-    background: var(--bg);
-}
-:root[data-scheme='dark'] {
-    color-scheme: dark;
-}
-:root[data-scheme='light'] {
-    color-scheme: light;
-}
-* {
-    box-sizing: border-box;
-}
-[hidden] {
-    display: none !important;
-}
+:root { --left: 24%; --right: 34%; }
 body {
     margin: 0;
     display: flex;
@@ -67,41 +38,6 @@ header select {
     font-weight: 450;
     color: var(--muted);
     margin-left: 5px;
-}
-button,
-select,
-input,
-textarea {
-    font: inherit;
-    color: inherit;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 6px 9px;
-}
-button {
-    cursor: pointer;
-}
-button:hover,
-button[aria-pressed='true'] {
-    color: var(--accent);
-    background: var(--tint);
-}
-button:disabled {
-    opacity: 0.45;
-    cursor: default;
-}
-button.primary {
-    background: var(--accent);
-    color: var(--panel);
-    border-color: transparent;
-}
-button:focus-visible,
-select:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
 }
 .docbar {
     padding: 6px 16px;

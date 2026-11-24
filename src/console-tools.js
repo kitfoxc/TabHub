@@ -13,9 +13,15 @@ function writeLog(message) {
     const item = document.createElement('li');
     item.textContent = new Date().toLocaleTimeString() + ' · ' + message;
     logList.prepend(item);
+    const activity = document.getElementById('activity');
+    activity.prepend(item.cloneNode(true));
+    if (activity.children.length > 5) activity.lastElementChild.remove();
     if (logList.children.length > 200) logList.lastElementChild.remove();
 }
-document.getElementById('clear-log').onclick = () => logList.replaceChildren();
+document.getElementById('clear-log').onclick = () => {
+    logList.replaceChildren();
+    document.getElementById('activity').replaceChildren();
+};
 
 const handles = new Map();
 async function saveScript(filename, contents) {
@@ -57,7 +63,25 @@ function addEntry(value) {
     field.rows = plain ? 2 : 5;
     field.value = plain ? value : JSON.stringify(value, null, 2);
     label.append(field);
-    row.append(label);
+    const details = document.createElement('details');
+    const summary = document.createElement('summary');
+    function updateSummary() {
+        const text = field.value;
+        let caption = text;
+        if (!plain) {
+            try {
+                const value = JSON.parse(text);
+                caption = value.type === 'queue' ? '队列 · ' + value.content.length + ' 条' :
+                    value.type === 'pack' ? '条件包 · ' + value.content.length + ' 条' :
+                    (Array.isArray(value) ? value : [value]).map(p=>typeof p === 'string'?p:p.text).join('');
+            } catch { caption = '待修正的 JSON'; }
+        }
+        summary.textContent = caption || '空公告';
+    }
+    field.oninput = updateSummary;
+    updateSummary();
+    row.append(details);
+    details.append(summary,label);
     for (const [caption, action] of [
         ['上移', () => row.previousElementSibling?.before(row)],
         ['下移', () => row.nextElementSibling?.after(row)],
@@ -65,8 +89,8 @@ function addEntry(value) {
     ]) {
         const button = document.createElement('button');
         button.textContent = caption;
-        button.onclick = () => { action(); editorState.textContent = '列表已修改。'; };
-        row.append(button);
+        button.onclick = () => { action(); filterEntries(); editorState.textContent = '列表已修改。'; };
+        details.append(button);
     }
     entries.append(row);
     return field;
@@ -75,7 +99,11 @@ if (typeof tabHubMessages !== 'undefined' && Array.isArray(tabHubMessages)) tabH
 else editorState.textContent = '未能读取 messages.js。';
 entries.oninput = () => { editorState.textContent = '列表已修改。'; };
 document.getElementById('add-entry').onclick = () => {
-    addEntry(samples[document.getElementById('entry-kind').value]).focus();
+    document.getElementById('search').value = '';
+    const field = addEntry(samples[document.getElementById('entry-kind').value]);
+    filterEntries();
+    field.closest('details').open = true;
+    field.focus();
     editorState.textContent = '列表已修改。';
 };
 document.getElementById('save-messages').onclick = async event => {
@@ -88,6 +116,9 @@ document.getElementById('save-messages').onclick = async event => {
                 if (!validEntry(value)) throw new Error('公告格式无效');
                 return value;
             } catch (error) {
+                document.getElementById('search').value = '';
+                filterEntries();
+                field.closest('details').open = true;
                 field.focus();
                 throw new Error('第 ' + (i + 1) + ' 条 · ' + error.message);
             }
@@ -96,3 +127,11 @@ document.getElementById('save-messages').onclick = async event => {
     } catch (error) { editorState.textContent = error.message; writeLog('公告保存失败 · ' + error.message); }
     finally { button.disabled = false; }
 };
+
+function filterEntries() {
+    const query = document.getElementById('search').value.toLowerCase();
+    for(const row of entries.children) row.hidden = !row.querySelector('textarea').value.toLowerCase().includes(query);
+    document.getElementById('entry-count').textContent = entries.children.length;
+}
+document.getElementById('search').oninput = filterEntries;
+filterEntries();
