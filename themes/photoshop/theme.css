@@ -8,7 +8,8 @@
     --strip: #dbdbdb;
     --panel: #f0f0f0;
     --line: #ccc;
-    --ink: #454545;
+    --ink: #666666;
+    --ink-active: #464646;
     --hover: #0001;
     color: var(--ink);
 }
@@ -16,7 +17,8 @@
     --strip: #262626;
     --panel: #323232;
     --line: #212121;
-    --ink: #ddd;
+    --ink: #848484;
+    --ink-active: #e1e1e1;
     --hover: #fff2;
 }
 
@@ -35,6 +37,10 @@
 #tabs { align-items: stretch; overflow: clip; }
 .tab .face { box-shadow: inset -1px 0 var(--line); }
 .tab:is(.active, .was-active) .face { background: var(--panel); }
+
+/* Active tab text color */
+.tab.active .label { color: var(--ink-active); }
+
 .tab:not(.active):hover .face, #new-tab:hover, .close:hover { background: var(--hover); }
 .select {
     min-width: 0; padding: 0 3px 0 17px; flex: 1; display: flex;
