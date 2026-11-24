@@ -3,13 +3,12 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
-        <meta name="theme-color" content="#151a22" />
         <meta
             http-equiv="Content-Security-Policy"
             content="default-src 'none'; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; frame-src 'self' file:; img-src data:; font-src 'self' file:"
         />
         <title>Messages Editor · TabHub</title>
-        <link rel="stylesheet" href="ui/workbench.css" />
+        <link rel="stylesheet" href="ui/workbench.css">
         <link rel="stylesheet" href="editor/editor.css" />
         <link rel="stylesheet" href="styles/rich-text.css" />
         <script defer src="editor/vendor/acorn.js"></script>
@@ -20,228 +19,144 @@
         <script defer src="editor/storage.js"></script>
         <script defer src="editor/app.js"></script>
         <script defer src="editor/inspector.js"></script>
-        <script defer src="editor/interactions.js"></script>
     </head>
     <body>
-        <header class="appbar">
-            <div class="brand" aria-label="TabHub">
-                <span class="brand-mark">TH</span>
-                <span class="brand-copy"><strong>TabHub</strong><small>MESSAGES EDITOR</small></span>
-            </div>
-            <span class="appbar-divider" aria-hidden="true"></span>
-            <nav class="file-actions" aria-label="文件操作">
-                <button id="newDoc" class="toolbar-button" title="新建文档"><span class="glyph">＋</span><span>新建</span></button>
-                <button id="open" class="toolbar-button" title="打开 messages.js"><span class="glyph">↗</span><span>打开</span></button>
-                <button id="merge" class="toolbar-button" title="将其他文件的消息追加到当前文档"><span class="glyph">⇄</span><span>合并导入</span></button>
-                <span class="toolbar-divider" aria-hidden="true"></span>
-                <button id="save" class="toolbar-button primary" title="保存 · Ctrl+S"><span class="glyph">▣</span><span>保存</span></button>
-                <button id="saveAs" class="toolbar-button" title="另存为 · Ctrl+Shift+S"><span class="glyph">↗</span><span>另存为</span></button>
-                <button id="download" class="toolbar-button" title="导出 JavaScript 文件"><span class="glyph">↓</span><span>导出 JS</span></button>
+        <header>
+            <div class="brand">TabHub <span>Messages Editor</span></div>
+            <nav aria-label="文件">
+                <button id="newDoc">新建</button><button id="open">打开</button
+                ><button id="merge">合并导入</button> <button id="save" class="primary">保存</button
+                ><button id="saveAs">另存为</button><button id="download">导出 JS</button>
             </nav>
-            <div class="appbar-spacer"></div>
-            <label class="scheme-picker" title="编辑器外观">
-                <span class="glyph">◐</span>
-                <select id="scheme" aria-label="编辑器配色">
-                    <option value="auto">跟随系统</option>
-                    <option value="light">浅色</option>
-                    <option value="dark">深色</option>
-                </select>
-            </label>
+            <select id="scheme" aria-label="编辑器配色">
+                <option value="auto">跟随系统</option>
+                <option value="light">浅色</option>
+                <option value="dark">深色</option>
+            </select>
         </header>
-
         <div class="docbar">
-            <div class="workspace-label"><span class="glyph">▤</span>工作区</div>
             <div id="documents" aria-label="打开的文件"></div>
-            <div class="docbar-actions">
-                <button id="recover" class="subtle-button"><span class="glyph">◷</span>本地草稿</button>
-                <button id="closeDoc" class="subtle-button"><span class="glyph">×</span>关闭文档</button>
-            </div>
+            <button id="recover">本地草稿</button><button id="closeDoc">关闭文档</button>
         </div>
-
         <main>
-            <aside id="library" class="panel library-panel">
-                <div class="panel-heading">
-                    <div class="heading-copy">
-                        <h2>消息列表</h2>
-                        <span class="count-chip"><span id="count">0</span> 条</span>
-                    </div>
-                    <button id="add" class="icon-button accent-button" title="新增消息" aria-label="新增消息">＋</button>
+            <aside id="library">
+                <h2>消息列表 <small id="count"></small></h2>
+                <input id="search" type="search" placeholder="搜索消息内容" aria-label="搜索消息" />
+                <div class="actions">
+                    <button id="add" class="primary">新增</button><button id="insert">插入</button
+                    ><button id="duplicate">复制</button><button id="remove">删除</button>
                 </div>
-                <label class="search-field">
-                    <span class="glyph" aria-hidden="true">⌕</span>
-                    <input id="search" type="search" placeholder="搜索消息内容..." aria-label="搜索消息" />
-                    <kbd>/</kbd>
-                </label>
-                <div class="library-actions">
-                    <button id="insert" class="quiet-button" title="在当前消息前插入">插入</button>
-                    <button id="duplicate" class="quiet-button" title="复制当前消息">复制</button>
-                    <button id="remove" class="quiet-button danger-text" title="删除选中消息">删除</button>
-                </div>
-                <div id="rows" class="message-list" aria-label="消息条目"></div>
-                <div class="list-footer">
-                    <label class="check-all"><input id="checkAll" type="checkbox" />选中筛选结果</label>
-                    <div class="move-actions">
-                        <button id="up" class="icon-button" title="上移" aria-label="上移">↑</button>
-                        <button id="down" class="icon-button" title="下移" aria-label="下移">↓</button>
-                    </div>
+                <div id="rows"></div>
+                <div class="actions">
+                    <label><input id="checkAll" type="checkbox" /> 选中搜索结果</label><button id="up">上移</button
+                    ><button id="down">下移</button>
                 </div>
             </aside>
-
-            <div class="divider" data-edge="left" role="separator" aria-orientation="vertical" aria-label="调整消息列表宽度"></div>
-
-            <section id="writing" class="panel editor-panel">
-                <div class="editor-heading">
-                    <div class="heading-copy">
-                        <h2>消息编辑</h2>
-                        <span class="subheading">编辑内容与富文本样式</span>
-                    </div>
-                    <div class="history-actions">
-                        <button id="undo" class="icon-button" title="撤销 · Ctrl+Z" aria-label="撤销">↶</button>
-                        <button id="redo" class="icon-button" title="重做 · Ctrl+Y" aria-label="重做">↷</button>
-                    </div>
+            <div class="divider" data-edge="left"></div>
+            <section id="writing">
+                <div class="section-head">
+                    <h2>消息编辑</h2>
+                    <div><button id="undo">撤销</button><button id="redo">重做</button></div>
                 </div>
-
-                <div class="modebar" id="modes" role="tablist" aria-label="编辑模式">
-                    <button data-mode="visual" role="tab">可视化</button>
-                    <button data-mode="source" role="tab">原生源码</button>
-                    <button data-mode="mixed" role="tab">混合</button>
+                <div class="tabs" id="modes">
+                    <button data-mode="visual">可视化</button><button data-mode="source">原生源码</button
+                    ><button data-mode="mixed">混合</button>
                 </div>
-
-                <div id="empty" class="empty-state">
-                    <span class="empty-icon">＋</span>
-                    <strong>还没有选择消息</strong>
-                    <span>新增一条消息，或打开本地 messages.js 开始编辑。</span>
-                    <button id="emptyOpen" class="quiet-button" type="button">打开消息文件</button>
-                </div>
-
-                <div id="visual" class="visual-editor">
-                    <div class="fields context-fields">
-                        <label>消息内容<select id="leaf"></select></label>
-                        <label>文字片段<select id="segment"></select></label>
+                <div id="empty">新增一条消息，或打开本地 messages.js 开始编辑。</div>
+                <div id="visual">
+                    <div class="fields">
+                        <label>消息内容<select id="leaf"></select></label
+                        ><label>文字片段<select id="segment"></select></label>
                     </div>
-
-                    <div class="field-heading">
-                        <label for="text">片段正文</label>
-                        <span class="field-hint">选择文字后应用格式；无选区时应用于整段</span>
+                    <label>片段正文<textarea id="text" rows="6" placeholder="输入公告内容"></textarea></label>
+                    <div class="actions">
+                        <button id="addPart">添加片段</button><button id="delPart">移除片段</button>
                     </div>
-
-                    <div class="format-toolbar" role="toolbar" aria-label="文字格式">
-                        <button type="button" data-quick-format="bold" class="format-key" title="粗体"><strong>B</strong></button>
-                        <button type="button" data-quick-format="italic" class="format-key" title="斜体"><em>I</em></button>
-                        <button type="button" data-quick-format="underline" class="format-key underline-key" title="下划线">U</button>
-                        <button type="button" data-quick-format="strikethrough" class="format-key strike-key" title="删除线">S</button>
-                        <span class="toolbar-divider" aria-hidden="true"></span>
-                        <label class="color-control" title="应用文字颜色">
-                            <span class="color-glyph">A</span>
-                            <input id="quickColor" type="color" value="#e6b56c" aria-label="文字颜色" />
-                        </label>
-                        <span class="toolbar-divider" aria-hidden="true"></span>
-                        <label class="advanced-format">更多格式<select id="format" aria-label="更多文字格式"></select></label>
-                        <span id="param" class="format-parameter"></span>
-                        <button id="applyFormat" class="quiet-button apply-format">应用</button>
-                        <button id="clearFormat" class="quiet-button">清除格式</button>
+                    <h3>文字格式</h3>
+                    <div class="fields">
+                        <select id="format" aria-label="格式"></select
+                        ><span id="param"></span>
                     </div>
-
-                    <textarea id="text" rows="7" placeholder="输入公告内容..."></textarea>
-
-                    <div class="segment-actions">
-                        <span class="field-hint">片段管理</span>
-                        <div>
-                            <button id="addPart" class="quiet-button">＋ 添加片段</button>
-                            <button id="delPart" class="quiet-button danger-text">移除片段</button>
-                        </div>
+                    <div class="actions">
+                        <button id="applyFormat">应用到选区或整段</button
+                        ><button id="clearFormat">清除格式</button>
                     </div>
                 </div>
-
-                <div id="sourcePanel" class="source-panel">
-                    <div class="field-heading">
-                        <label for="raw">单条公告源码</label>
-                        <span class="field-hint">静态 JavaScript / JSON 数据</span>
-                    </div>
-                    <textarea id="raw" spellcheck="false" rows="12" placeholder="在这里编辑单条公告的原生数据..."></textarea>
-                </div>
-
-                <div class="editor-bottom">
-                    <p id="validation" role="status" aria-live="polite"></p>
-                    <button id="fullSource" class="quiet-button source-link">查看完整文件源码 <span aria-hidden="true">↗</span></button>
-                </div>
-            </section>
-
-            <div class="divider" data-edge="right" role="separator" aria-orientation="vertical" aria-label="调整检查器宽度"></div>
-
-            <aside id="inspector" class="panel inspector-panel">
-                <div class="inspector-heading">
-                    <div class="inspector-tabs" role="tablist" aria-label="检查器">
-                        <button id="previewTab" role="tab">实时预览</button>
-                        <button id="wikiTab" role="tab">格式 Wiki</button>
-                    </div>
-                    <button class="icon-button panel-close" data-close-panel="right" title="关闭检查器" aria-label="关闭检查器">×</button>
-                </div>
-
-                <div id="previewPanel" class="preview-panel">
-                    <section class="preview-section">
-                        <div class="section-title"><h3>正文预览</h3><span class="live-indicator">实时</span></div>
-                        <div id="bodyPreview" class="paper"></div>
-                    </section>
-
-                    <section class="preview-section hub-preview-section">
-                        <div class="section-title"><h3>Hub 预览</h3><span class="field-hint">使用实际主题渲染</span></div>
-                        <div class="preview-settings">
-                            <label>主题<select id="theme"></select></label>
-                            <label>配色<select id="palette"><option value="light">浅色</option><option value="dark">深色</option></select></label>
-                        </div>
-                        <div class="preview-settings canvas-settings">
-                            <label>宽<input type="number" id="viewWidth" value="800" min="100" max="7680" /></label>
-                            <label>高<input type="number" id="viewHeight" value="450" min="60" max="4320" /></label>
-                            <label>缩放<select id="zoom"><option value="fit">适应</option><option value=".5">50%</option><option value="1">100%</option></select></label>
-                        </div>
-                        <div id="viewport" aria-label="Hub 主题预览"><div id="frameBox"></div></div>
-                        <div class="preview-settings playback-settings">
-                            <label>预览范围<select id="scope"><option value="one">锁定当前内容</option><option value="all">完整消息列表</option></select></label>
-                            <label>间隔（秒）<input type="number" id="seconds" min=".1" max="3600" step=".1" value="4" /></label>
-                        </div>
-                        <div class="preview-actions">
-                            <button id="play" class="quiet-button">▶ 播放</button>
-                            <button id="step" class="quiet-button" title="下一条">下一条 ↦</button>
-                            <button id="restart" class="quiet-button" title="从第一条重新预览">重播</button>
-                            <button id="freeze" class="quiet-button" title="冻结或恢复主题动画">冻结动效</button>
-                        </div>
-                    </section>
-                </div>
-
-                <div id="wikiPanel" class="wiki-panel" hidden>
-                    <label class="search-field wiki-search">
-                        <span class="glyph" aria-hidden="true">⌕</span>
-                        <input type="search" id="wikiSearch" placeholder="搜索格式名称或字段..." aria-label="搜索格式" />
+                <div id="sourcePanel">
+                    <label
+                        >单条公告 · 静态 JS / JSON<textarea id="raw" spellcheck="false" rows="12"></textarea>
                     </label>
-                    <div class="wiki-intro">
-                        <strong>富文本格式参考</strong>
-                        <span>查看语法、参数与实际效果。可将示例直接插入当前消息。</span>
+                </div>
+                <p id="validation" role="status"></p>
+                <button id="fullSource">查看完整文件源码</button>
+            </section>
+            <div class="divider" data-edge="right"></div>
+            <aside id="inspector">
+                <div class="tabs">
+                    <button id="previewTab">预览</button><button id="wikiTab">格式 Wiki</button>
+                </div>
+                <div id="previewPanel">
+                    <h3>正文</h3>
+                    <div id="bodyPreview" class="paper"></div>
+                    <h3>Hub 预览</h3>
+                    <div class="fields">
+                        <label>主题<select id="theme"></select></label
+                        ><label
+                            >配色<select id="palette">
+                                <option value="light">浅色</option>
+                                <option value="dark">深色</option>
+                            </select></label
+                        >
                     </div>
+                    <div class="fields">
+                        <label>画布宽<input type="number" id="viewWidth" value="800" min="100" max="7680" /></label
+                        ><label
+                            >画布高<input type="number" id="viewHeight" value="450" min="60" max="4320"
+                        /></label>
+                        <label
+                            >缩放<select id="zoom">
+                                <option value="fit">适应</option>
+                                <option value=".5">50%</option>
+                                <option value="1">100%</option>
+                            </select></label
+                        >
+                    </div>
+                    <div id="viewport"><div id="frameBox"></div></div>
+                    <div class="fields">
+                        <label
+                            >预览范围<select id="scope">
+                                <option value="one">锁定当前内容</option>
+                                <option value="all">完整消息列表</option>
+                            </select></label
+                        >
+                        <label
+                            >间隔（秒）<input type="number" id="seconds" min=".1" max="3600" step=".1" value="4"
+                        /></label>
+                    </div>
+                    <div class="actions">
+                        <button id="play">播放</button><button id="step">下一条</button
+                        ><button id="restart">重播</button><button id="freeze">冻结动效</button>
+                    </div>
+                </div>
+                <div id="wikiPanel" hidden>
+                    <input type="search" id="wikiSearch" placeholder="搜索名称或字段" aria-label="搜索格式" />
                     <div id="wiki"></div>
                 </div>
             </aside>
         </main>
-
-        <footer class="statusbar">
-            <div class="statusbar-panels">
-                <button id="toggleLeft" class="statusbar-button"><span class="glyph">☷</span>消息列表</button>
-                <button id="toggleRight" class="statusbar-button"><span class="glyph">▧</span>检查器</button>
-            </div>
-            <span class="status-dot" aria-hidden="true"></span>
-            <span id="status" role="status" aria-live="polite">正在初始化工作区...</span>
-            <span id="stats"></span>
+        <footer>
+            <button id="toggleLeft">消息列表</button><button id="toggleRight">检查器</button
+            ><span id="status" role="status"></span><span id="stats"></span>
         </footer>
-
         <input id="files" type="file" accept=".js,.json" multiple hidden />
-
         <dialog id="draftDialog">
-            <div class="dialog-heading"><div><h2>本地工作区草稿</h2><p>恢复其他窗口中自动保存的编辑内容</p></div><button id="dismissDraft" class="icon-button" aria-label="关闭">×</button></div>
-            <div id="drafts" class="dialog-content"></div>
+            <h2>本地工作区草稿</h2>
+            <div id="drafts"></div>
+            <button id="dismissDraft">关闭</button>
         </dialog>
         <dialog id="codeDialog">
-            <div class="dialog-heading"><div><h2>完整文件源码</h2><p>导出前检查生成的 messages.js</p></div><button id="dismiss" class="icon-button" aria-label="关闭">×</button></div>
-            <textarea id="code" rows="18" readonly></textarea>
+            <h2>完整文件源码</h2>
+            <textarea id="code" rows="18" readonly></textarea><button id="dismiss">关闭</button>
         </dialog>
     </body>
 </html>
